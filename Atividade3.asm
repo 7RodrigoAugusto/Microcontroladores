@@ -70,10 +70,10 @@
 ; DEFINICAO DE TODOS OS PINOS QUE SERAO UTILIZADOS COMO SAIDA
 ; RECOMENDAMOS TAMBEM COMENTAR O SIGNIFICADO DE SEUS ESTADOS (0 E 1)
 
-#DEFINE SEMAFORO1_VERMELHO	GPIO,0
-#DEFINE SEMAFORO1_VERDE		GPIO,1
-#DEFINE SEMAFORO1_AMARELO	GPIO,2
-#DEFINE SEMAFORO2_AMARELO	GPIO,4
+#DEFINE SEMAFORO1_VERMELHO	GPIO,0	;Semaforo 1 vermelho e semaforo 2 verde
+#DEFINE SEMAFORO1_VERDE		GPIO,1	;Semaforo 2 vermelho e semaforo 1 verde
+#DEFINE SEMAFORO1_AMARELO	GPIO,2	;Semaforo 1 amarelo
+#DEFINE SEMAFORO2_AMARELO	GPIO,4	;Semaforo 2 amarelo
 
 ;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 ;*                       VETOR DE RESET                            *
@@ -114,65 +114,77 @@ SAI_INT
 ;	-----	SEMAFORO1_VERMELHOR_2_VERDE_AMARELO	-----
 
 SEMAFORO1_VERMELHO_2_VERDE_AMARELO
-	;Primeiro limpa os que nao serao utilizados no momento
+	;Primeiro limpa
 	BCF	SEMAFORO1_AMARELO
 	BCF	SEMAFORO1_VERDE
 	BCF	SEMAFORO2_AMARELO
 	
 	;Agora seta os do momento
 	BSF	SEMAFORO1_VERMELHO	;Acende o vermelho do 1 e o verde do 2
-	;BSF	SEMAFORO1_VERDE
-	GOTO	ATRASO_2S_INICIO
+	
+	GOTO	ATRASO_2S_INICIO	;Chama o primeiro atraso que eh de 2 segundos
 VOLTA_2S
-	BSF	SEMAFORO2_AMARELO
-	GOTO	ATRASO_05S_INICIO
+	BSF	SEMAFORO2_AMARELO	;Volta do atraso de 2 segundos e liga o led amarelo do semaforo 2
+	GOTO	ATRASO_05S_INICIO	;Comeca um atraso de 0.5 segundos
+	
 VOLTA_05S
 	BCF	SEMAFORO1_VERMELHO
-	;BCF	SEMAFORO1_VERDE
 	BCF	SEMAFORO2_AMARELO
 	RETURN	;Volta pro Main
 	
 ;	-----	ATRASO 2 SEGUNDOS	-----
-ATRASO_2S_INICIO
-	MOVLW	.250
+
+;Cada atraso eh formado por um conjunto de labels que vao se alternando
+;A label atraso inicio inicializa as variaveis que sao essenciais para o atraso
+
+;Recebe o valor de AUX
+ATRASO_2S_INICIO	
+	MOVLW	.250			;Passa o valor de AUX_ESTOURO
 	MOVWF	AUX_ESTOURO
 
-ATRASO_2S_ATUALIZA
-	BCF	INTCON,T0IF	;Limpa a flag
-	MOVLW	.6
+;Recebe o valor de TMR0, que vai sendo atualizado a cada vez que uma variavel de AUX decrementa 
+;Assim eu vou ter um loop consistente com duas variaveis
+
+ATRASO_2S_ATUALIZA		
+	BCF	INTCON,T0IF		;Limpa a flag
+	MOVLW	.6			;Passa o valor de TMR0 desejado
 	MOVWF	TMR0
 
 ATRASO_2S
- 	BTFSS	INTCON,T0IF
-	GOTO	ATRASO_2S
-	DECFSZ	AUX_ESTOURO
-	GOTO	ATRASO_2S_ATUALIZA
-	GOTO	FIM_ATRASO_2S
+ 	BTFSS	INTCON,T0IF		;Checa se o TMR0 chegou em 256
+	GOTO	ATRASO_2S		;Fica em loop enquanto sem flag
+	DECFSZ	AUX_ESTOURO		;Estourou decrementa AUX
+	GOTO	ATRASO_2S_ATUALIZA	;AUX ainda nao zerou, entao repassa o valor correto de TMR0 e entra no loop novamente
+	GOTO	FIM_ATRASO_2S		;Se AUX  for 0 entao terminou o tempo desejado do atraso
 
 FIM_ATRASO_2S
-	BCF	INTCON,T0IF	;Limpa a flag
-	GOTO VOLTA_2S
+	BCF	INTCON,T0IF		;Limpa a flag
+	GOTO VOLTA_2S			;Sai do loop de 2 segundos
 
 ;	-----	ATRASO 05 SEGUNDOS	-----
+
+;A explicacao do atraso de 2 segundos se repete para o atraso de 0.5 segundos
+
 ATRASO_05S_INICIO
-	MOVLW	.225
+	MOVLW	.225			;Passa o valor de AUX_ESTOURO
 	MOVWF	AUX_ESTOURO
+	
 
 ATRASO_05S_ATUALIZA
-	BCF	INTCON,T0IF	;Limpa a flag
-	MOVLW	.187
+	BCF	INTCON,T0IF		;Limpa a flag
+	MOVLW	.187			;Passa o valor de TMR0 desejado
 	MOVWF	TMR0
 
 ATRASO_05S
-	BTFSS	INTCON,T0IF
-	GOTO	ATRASO_05S
-	DECFSZ	AUX_ESTOURO
-	GOTO	ATRASO_05S_ATUALIZA
-	GOTO	FIM_ATRASO_05S
+	BTFSS	INTCON,T0IF		;Checa se o TMR0 chegou em 256
+	GOTO	ATRASO_05S		;Fica em loop enquanto sem flag
+	DECFSZ	AUX_ESTOURO		;Estourou decrementa AUX
+	GOTO	ATRASO_05S_ATUALIZA	;AUX ainda nao zerou, entao repassa o valor correto de TMR0 e entra no loop novamente
+	GOTO	FIM_ATRASO_05S		;Se AUX  for 0 entao terminou o tempo desejado do atraso
 
 FIM_ATRASO_05S
-	BCF	INTCON,T0IF	;Limpa a flag
-	GOTO VOLTA_05S
+	BCF	INTCON,T0IF		;Limpa a flag
+	GOTO VOLTA_05S			;Sai do loop de 0.5 segundos
 
 ;	-----	FIM	SEMAFORO1_VERMELHOR_2_VERDE_AMARELO	-----
 
@@ -184,11 +196,10 @@ FIM_ATRASO_05S
 SEMAFORO2_VERMELHOR_1_VERDE_AMARELO
 	;Primeiro limpa os que nao serao utilizados no momento
 	BCF	SEMAFORO2_AMARELO
-	BCF SEMAFORO1_VERMELHO
+	BCF 	SEMAFORO1_VERMELHO
 	BCF	SEMAFORO1_AMARELO
 
 	;Agora seta os do momento
-	;BSF	SEMAFORO1_VERMELHO
 	BSF	SEMAFORO1_VERDE			;O verde do 1 funciona como o vermelho do 2
 	GOTO	ATRASO2_2S_INICIO
 VOLTA2_2S
@@ -206,19 +217,19 @@ ATRASO2_2S_INICIO
 	MOVWF	AUX_ESTOURO
 
 ATRASO2_2S_ATUALIZA
-	BCF	INTCON,T0IF	;Limpa a flag
-	MOVLW	.6
+	BCF	INTCON,T0IF		;Limpa a flag
+	MOVLW	.6			;Passa o valor de TMR0 desejado
 	MOVWF	TMR0
 
 ATRASO2_2S
-	BTFSS	INTCON,T0IF
-	GOTO	ATRASO2_2S
-	DECFSZ	AUX_ESTOURO
-	GOTO	ATRASO2_2S_ATUALIZA
-	GOTO	FIM_ATRASO2_2S
+	BTFSS	INTCON,T0IF		;Checa se o TMR0 chegou em 256
+	GOTO	ATRASO2_2S		;Fica em loop enquanto sem flag
+	DECFSZ	AUX_ESTOURO		;Estourou decrementa AUX
+	GOTO	ATRASO2_2S_ATUALIZA	;AUX ainda nao zerou, entao repassa o valor correto de TMR0 e entra no loop novamente
+	GOTO	FIM_ATRASO2_2S		;Se AUX  for 0 entao terminou o tempo desejado do atraso
 
 FIM_ATRASO2_2S
-	BCF	INTCON,T0IF	;Limpa a flag
+	BCF	INTCON,T0IF		;Limpa a flag
 	GOTO VOLTA2_2S
 
 ;	-----	ATRASO 05 SEGUNDOS	-----
@@ -227,20 +238,20 @@ ATRASO2_05S_INICIO
 	MOVWF	AUX_ESTOURO
 
 ATRASO2_05S_ATUALIZA
-	BCF	INTCON,T0IF	;Limpa a flag
-	MOVLW	.187
+	BCF	INTCON,T0IF		;Limpa a flag
+	MOVLW	.187			;Passa o valor de TMR0 desejado
 	MOVWF	TMR0
 
 ATRASO2_05S
-	BTFSS	INTCON,T0IF
-	GOTO	ATRASO2_05S
-	DECFSZ	AUX_ESTOURO
-	GOTO	ATRASO2_05S_ATUALIZA
-	GOTO	FIM_ATRASO2_05S
+	BTFSS	INTCON,T0IF		;Checa se o TMR0 chegou em 256
+	GOTO	ATRASO2_05S		;Fica em loop enquanto sem flag
+	DECFSZ	AUX_ESTOURO		;Estourou decrementa AUX
+	GOTO	ATRASO2_05S_ATUALIZA	;AUX ainda nao zerou, entao repassa o valor correto de TMR0 e entra no loop novamente
+	GOTO	FIM_ATRASO2_05S		;Se AUX  for 0 entao terminou o tempo desejado do atraso
 
 FIM_ATRASO2_05S
-	BCF	INTCON,T0IF	;Limpa a flag
-	GOTO VOLTA2_05S
+	BCF	INTCON,T0IF		;Limpa a flag
+	GOTO VOLTA2_05S			;Sai do loop de 0.5 segundos
 
 ;	-----	FIM	SEMAFORO2_VERMELHOR_1_VERDE_AMARELO	-----
 	
@@ -251,17 +262,17 @@ FIM_ATRASO2_05S
 	
 INICIO
 	BANK1				;ALTERA PARA O BANCO 1
-	MOVLW	B'00000000' ;CONFIGURA TODAS AS PORTAS DO GPIO (PINOS)
-	MOVWF	TRISIO		;
+	MOVLW	B'00000000' 	;CONFIGURA TODAS AS PORTAS DO GPIO (PINOS)
+	MOVWF	TRISIO		
 	CLRF	ANSEL 		;DEFINE PORTAS COMO Digital I/O
 
 	MOVLW	B'00000100'	;Utilizando o PRESCALER em 1:32 do TMR0
-						;Configurando ele!
+				;Configurando ele!
 	MOVWF	OPTION_REG	
 
 	MOVLW	B'00000000'
 	MOVWF	INTCON		;DEFINE INTERRUPCAO
-	BANK0				;RETORNA PARA O BANCO 0
+	BANK0			;RETORNA PARA O BANCO 0
 
 	MOVLW	B'00000111'
 	MOVWF	CMCON		;DEFINE O MODO DE OPERACAO DO COMPARADOR ANALOGICO
@@ -281,19 +292,13 @@ MAIN
 	;	-----	EXPLICACAO ------
 	;Explicacao do funcionamento do TMR0, estou utilizando o prescaler de 1:32
 	;para cada 32 instrucoes de maquina terei um acrescimo no TMR0
-	;por isso quando eu encontro o valor de AUX = 11 eu tenho TMR0 = 1
-	;Pois para realizar o incremento de aux ate 11 eu tenho que realizar 32 instrucoes
-	;sabendo que INCF corresponde a um ciclo de maquina e GOTO corresponde a dois ciclos 
-	;de maquina
-	;INCF	AUX
-	;GOTO MAIN
 	;	-----	FIM	EXPLICACAO ------
 
 
 	;	-----	Semaforo	-----
 	;	Consigo um tempo de 2.502306 segundos entre um semaforo e outro
-	CALL	SEMAFORO1_VERMELHO_2_VERDE_AMARELO
-	CALL	SEMAFORO2_VERMELHOR_1_VERDE_AMARELO
+	CALL	SEMAFORO1_VERMELHO_2_VERDE_AMARELO	;Chama semaforo 1 vermelho e semaforo 2 verde e amarelo
+	CALL	SEMAFORO2_VERMELHOR_1_VERDE_AMARELO	;Chama semaforo 2 vermelho e semaforo 1 verde e amarelo
 	GOTO MAIN
 	
 

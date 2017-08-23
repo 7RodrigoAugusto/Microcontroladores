@@ -1,0 +1,320 @@
+
+
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+;*              MODIFICACOES PARA USO COM 12F675                   *
+;*                FEITAS PELO PROF. MARDSON                        *
+;*                    FEVEREIRO DE 2016                            *
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+;*                       NOME DO PROJETO                           *
+;*                           CLIENTE                               *
+;*         DESENVOLVIDO PELA MOSAICO ENGENHARIA E CONSULTORIA      *
+;*   VERSAO: 1.0                           DATA: 17/06/03          *
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+;*                     DESCRICAO DO ARQUIVO                        *
+;*-----------------------------------------------------------------*
+;*   MODELO PARA O PIC 12F675                                      *
+;*                                                                 *
+;*                                                                 *
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+;*                     ARQUIVOS DE DEFINICAO                       *
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+#INCLUDE <P12F675.INC>	;ARQUIVO PADRAO MICROCHIP PARA 12F675
+
+	__CONFIG _BODEN_OFF & _CP_OFF & _PWRTE_ON & _WDT_OFF & _MCLRE_ON & _INTRC_OSC_NOCLKOUT
+
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+;*                    PAGINACAO DE MEMORIA                         *
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+
+#DEFINE	BANK0	BCF STATUS,RP0	;SETA BANK 0 DE MEMORIA
+#DEFINE	BANK1	BSF STATUS,RP0	;SETA BANK 1 DE MEMORIA
+
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+;*                         VARIAVEIS                               *
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+; DEFINICAO DOS NOMES E ENDEREÇOS DE TODAS AS VARIAVEIS UTILIZADAS 
+; PELO SISTEMA
+
+	CBLOCK	0x20	;ENDERECO INICIAL DA MEMORIA DE
+					;USUARIO
+		W_TEMP		;REGISTRADORES TEMPORARIOS PARA USO
+		STATUS_TEMP	;JUNTO AS INTERRUPCOES
+		;NOVAS VARIAVEIS
+		AUX
+		AUX_ESTOURO
+
+	ENDC			;FIM DO BLOCO DE MEMORIA
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+;*                        FLAGS INTERNOS                           *
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+; DEFINICAO DE TODOS OS FLAGS UTILIZADOS PELO SISTEMA
+
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+;*                         CONSTANTES                              *
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+; DEFINICAO DE TODAS AS CONSTANTES UTILIZADAS PELO SISTEMA
+
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+;*                           ENTRADAS                              *
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+
+	#DEFINE BOTAO0	GPIO,0	;Entrada 1
+	#DEFINE BOTAO1	GPIO,1	;Entrada 2
+	#DEFINE BOTAO2	GPIO,2	;Entrada 3
+
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+;*                           SAIDA                               *
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+; DEFINICAO DE TODOS OS PINOS QUE SERAO UTILIZADOS COMO SAIDA
+; RECOMENDAMOS TAMBEM COMENTAR O SIGNIFICADO DE SEUS ESTADOS (0 E 1)
+
+	#DEFINE FREQUENCIA	GPIO,4	;Frequencia de saida
+
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+;*                       VETOR DE RESET                            *
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+
+	ORG	0x00			;ENDERECO INICIAL DE PROCESSAMENTO
+	GOTO	INICIO
+	
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+;*                    INICIO DA INTERRUPCAO                        *
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+
+	ORG	0x04			;ENDERECO INICIAL DA INTERRUPCAO
+	MOVWF	W_TEMP		;COPIA W PARA W_TEMP
+	SWAPF	STATUS,W
+	MOVWF	STATUS_TEMP	;COPIA STATUS PARA STATUS_TEMP
+
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+;*                    ROTINA DE INTERRUPCAO                        *
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+;*                 ROTINA DE SAIDA DA INTERRUPCAO                  *
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+
+SAI_INT
+	SWAPF	STATUS_TEMP,W
+	MOVWF	STATUS		;MOVE STATUS_TEMP PARA STATUS
+	SWAPF	W_TEMP,F
+	SWAPF	W_TEMP,W	;MOVE W_TEMP PARA W
+	RETFIE
+
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+;*	            	 ROTINAS E SUBROTINAS                      *
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+
+;LOW
+;	RETURN
+
+HZ_262
+	INCF	AUX
+	;Nao ta estourando nunca, estudar isso
+	BTFSS	PIR1,TMR1IF
+	GOTO 	HZ_262
+	RETURN
+
+HZ_349
+	BTFSS	PIR1,TMR1IF
+	GOTO	HZ_349
+	RETURN
+
+HZ_440
+	BTFSS	PIR1,TMR1IF
+	GOTO	HZ_440
+	RETURN
+
+HZ_523
+	BTFSS	PIR1,TMR1IF
+	GOTO 	HZ_523
+	RETURN
+
+
+
+
+
+
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+;*                     INICIO DO PROGRAMA                          *
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+	
+INICIO
+	BANK1					;ALTERA PARA O BANCO 1
+	MOVLW	B'00000111' 	;CONFIGURA TODAS AS PORTAS DO GPIO (PINOS)
+							;GP0, GP1 E GP2 COMO ENTRADAS
+	MOVWF	TRISIO		
+	CLRF	ANSEL 			;DEFINE PORTAS COMO Digital I/O
+
+	MOVLW	B'00000100'		;Utilizando o PRESCALER em 1:32 do TMR0
+							;Configurando ele
+	MOVWF	OPTION_REG	
+
+	MOVLW	B'00000000'	;Configurando TMR1
+						;Vou utilizar prescaler de 1:1
+						;Meus valores estao contidos dentro do valor 0 ate 65xxx
+	MOVLW	T1CON
+
+	MOVLW	B'00000001'	;Habilitando interrupcao
+						;bit 0 TMR1IE: TMR1 Overflow Interrupt Enable bit
+						;1 = Enables the TMR1 overflow interrupt
+						;0 = Disables the TMR1 overflow interrupt
+	MOVLW	PIE1
+
+	MOVLW	B'11000000'
+	MOVWF	INTCON			;DEFINE INTERRUPCAO
+	BANK0					;RETORNA PARA O BANCO 0
+
+	MOVLW	B'00000111'
+	MOVWF	CMCON		;DEFINE O MODO DE OPERACAO DO COMPARADOR ANALOGICO
+
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+;*                     INICIALIZACAO DE VARIAVEIS                 *
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+	
+
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+;*                     ROTINA PRINCIPAL                            *
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+
+
+MAIN
+	MOVLW	.0
+	MOVWF	AUX
+
+	;Testa as portas que estao sendo utilizadas
+	;Automaticamente com essa disposicao, teremos o dispositivo se mantendo em low sempre que nenhum botao esteja pressionado
+	BTFSS	BOTAO0 						;Pula quando botao0 = 1
+	GOTO	BOTAO0_0					;Chama low frequency, pois botao0 = 0
+	BTFSS	BOTAO1 						;Pula quando botao1 = 1
+	GOTO	BOTAO1_0_BOTAO0_1			;botao0 = 1 botao1 = 0
+	GOTO	BOTAO1_1_BOTAO0_1			;botao0 = 1 botao1 = 1
+
+BOTAO0_0	
+	GOTO	F_LOW
+
+BOTAO1_0_BOTAO0_1
+	BTFSS	BOTAO2
+	GOTO	F_262						;botao0 = 1 botao1 = 0 botao2 = 0
+	GOTO	F_349						;botao0 = 1 botao1 = 0 botao2 = 1
+
+BOTAO1_1_BOTAO0_1
+	BTFSS	BOTAO2
+	GOTO	F_440						;botao0 = 1 botao1 = 1 botao2 = 0
+	GOTO	F_523						;botao0 = 1 botao1 = 1 botao2 = 1
+
+
+
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+;*                     CALCULO DA F
+;*		1Hz = 1s
+;*		F = 1/T, ou seja 
+;*		262HZ = 1/T
+;*
+;*		T = 1/262 = 0,003816 segundos	3816 instrucoes	0xEE8
+;*		T = 1/349 =	0,002865 segundos 	2865 instrucoes	0xB31
+;*		T = 1/440 = 0,002272 segundos 	2272 instrucoes 0x8E0
+;*		T = 1/523 = 0,001912 segundos   1912 instrucoes	0x778
+;*		Preciso passar esses valores para TMR1
+;*	
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
+
+
+F_LOW
+
+	;CALL	LOW
+	BCF		FREQUENCIA
+	GOTO	MAIN
+
+
+F_262
+	;LIMPA FLAG INTERRUPCAO
+	BCF	PIR1,TMR1IF
+
+	;Passa o valor correto para tal frequencia
+	;Tem que passar valores para TMR1L e TMR1H os dois bytes
+	;O valor de 0x0EE8-> equivale ao valor de 3816
+	;Vai de 0 a 65535(256*256 -1)
+
+	;O valor daqui deve ser o valor total(65535) - instrucoes(3816) = 61719 (0xF117)
+	;T = 1/262 = 0,003816 segundos	3816 instrucoes	0xEE8
+	MOVLW	0x17
+	MOVWF	TMR1L
+	MOVLW	0XF1
+	MOVWF	TMR1H
+
+	BSF		FREQUENCIA
+	CALL	HZ_262
+	BCF		FREQUENCIA
+	GOTO	MAIN
+
+F_349
+
+	;LIMPA FLAG INTERRUPCAO
+	BCF	PIR1,TMR1IF
+
+	;O valor daqui deve ser o valor total(65535) - instrucoes(2865) = 62670(0xF4CE)
+	;T = 1/349 =	0,002865 segundos 	2865 instrucoes	0xB31
+	MOVLW	0xCE
+	MOVWF	TMR1L
+	MOVLW	0XF4
+	MOVWF	TMR1H
+	
+	BSF		FREQUENCIA
+	CALL	HZ_349
+	BCF		FREQUENCIA
+	GOTO	MAIN
+
+F_440
+	
+	;LIMPA FLAG INTERRUPCAO
+	BCF	PIR1,TMR1IF
+
+	;O valor daqui deve ser o valor total(65535) - instrucoes(2272) = 63263(0xF71F)
+	;T = 1/440 = 0,002272 segundos 	2272 instrucoes 0x8E0
+	MOVLW	0x1F
+	MOVWF	TMR1L
+	MOVLW	0XF7
+	MOVWF	TMR1H
+
+	BSF		FREQUENCIA
+	CALL	HZ_440
+	BCF		FREQUENCIA
+	GOTO	MAIN
+
+F_523
+
+	;LIMPA FLAG INTERRUPCAO
+	BCF	PIR1,TMR1IF
+
+	;O valor daqui deve ser o valor total(65535) - instrucoes(1912) = 63623(0xF887)
+	;T = 1/523 = 0,001912 segundos   1912 instrucoes	0x778
+
+	MOVLW	0x87
+	MOVWF	TMR1L
+	MOVLW	0XF8
+	MOVWF	TMR1H
+
+	BSF		FREQUENCIA
+	CALL	HZ_523
+	BCF		FREQUENCIA
+	GOTO	MAIN
+
+
+
+
+
+
+
+	GOTO MAIN
+	
+
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+;*                       FIM DO PROGRAMA                           *
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+
+	END

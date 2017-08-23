@@ -1,5 +1,3 @@
-
-
 ;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 ;*              MODIFICACOES PARA USO COM 12F675                   *
 ;*                FEITAS PELO PROF. MARDSON                        *
@@ -183,8 +181,13 @@ INICIO
 
 
 MAIN
+
+
 	MOVLW	.0
 	MOVWF	AUX
+
+	;Limpa flag de mudanca de porta
+	BCF		INTCON,GPIF
 
 	;Testa as portas que estao sendo utilizadas
 	;Automaticamente com essa disposicao, teremos o dispositivo se mantendo em low sempre que nenhum botao esteja pressionado
@@ -224,12 +227,15 @@ BOTAO1_1_BOTAO0_1
 ;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
 
 
+;Em cada uma das frequencias fica preso enquanto o botao nao seja alterado
+
 F_LOW
 
 	;CALL	LOW
 	BCF		FREQUENCIA
+	BTFSC	INTCON,GPIF
 	GOTO	MAIN
-
+	GOTO	F_LOW
 
 F_262
 	;LIMPA FLAG INTERRUPCAO
@@ -249,8 +255,14 @@ F_262
 
 	BSF		FREQUENCIA
 	CALL	HZ_262
-	BCF		FREQUENCIA
+	BTFSC	INTCON,GPIF				;Se FLAG = 1, a porta foi alterada, volta para o Main.
 	GOTO	MAIN
+	;FAZ EM "ZERO" COM A FREQUENCIA
+	BCF		FREQUENCIA
+	CALL	HZ_262
+	BTFSC	INTCON,GPIF
+	GOTO	MAIN
+	GOTO	F_262
 
 F_349
 
@@ -266,8 +278,14 @@ F_349
 	
 	BSF		FREQUENCIA
 	CALL	HZ_349
-	BCF		FREQUENCIA
+	BTFSC	INTCON,GPIF				;Se FLAG = 1, a porta foi alterada, volta para o Main.
 	GOTO	MAIN
+	;FAZ EM "ZERO" COM A FREQUENCIA
+	BCF		FREQUENCIA
+	CALL	HZ_349
+	BTFSC	INTCON,GPIF
+	GOTO	MAIN
+	GOTO	F_349
 
 F_440
 	
@@ -281,10 +299,18 @@ F_440
 	MOVLW	0XF7
 	MOVWF	TMR1H
 
+	;FAZ EM "UM" COM A FREQUENCIA
 	BSF		FREQUENCIA
 	CALL	HZ_440
-	BCF		FREQUENCIA
+	BTFSC	INTCON,GPIF				;Se FLAG = 1, a porta foi alterada, volta para o Main.
 	GOTO	MAIN
+	;FAZ EM "ZERO" COM A FREQUENCIA
+	BCF		FREQUENCIA
+	CALL	HZ_440
+	BTFSC	INTCON,GPIF
+	GOTO	MAIN
+	GOTO	F_440
+
 
 F_523
 
@@ -301,8 +327,14 @@ F_523
 
 	BSF		FREQUENCIA
 	CALL	HZ_523
-	BCF		FREQUENCIA
+	BTFSC	INTCON,GPIF				;Se FLAG = 1, a porta foi alterada, volta para o Main.
 	GOTO	MAIN
+	;FAZ EM "ZERO" COM A FREQUENCIA
+	BCF		FREQUENCIA
+	CALL	HZ_523
+	BTFSC	INTCON,GPIF
+	GOTO	MAIN
+	GOTO	F_523
 
 
 

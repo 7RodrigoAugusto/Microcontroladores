@@ -42,8 +42,8 @@
 		W_TEMP		;REGISTRADORES TEMPORARIOS PARA USO
 		STATUS_TEMP	;JUNTO AS INTERRUPCOES
 		;NOVAS VARIAVEIS
-		AUX
-		AUX_ESTOURO
+		FLAG		;BIT 0 -> Interrupcao por overflow TMR0
+					;BIT 1 -> Interrupcao por mudanca de botao
 
 	ENDC			;FIM DO BLOCO DE MEMORIA
 ;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
@@ -92,6 +92,31 @@
 ;*                    ROTINA DE INTERRUPCAO                        *
 ;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 
+;Quando chegar na interrupcao modifica a flag que eu criei
+;	FLAG		;BIT 0 -> Interrupcao por overflow TMR0
+				;BIT 1 -> Interrupcao por mudanca de botao
+;Toda vez que interromper eu checo qual interrupcao aconteceu, e seto a flag para a interrupcao
+	BTFSC	INTCON,T0IF		;Checa se foi estourado por interrupcao, BIT 2 em 1
+	GOTO	INT_OVF	
+	BTFSC	INTCON,GPIF
+	GOTO	BOTAO_CHANGE
+	GOTO	SAI_INT
+
+INT_OVF
+	MOVLW	.0		;T0IF bit is set when TIMER0 rolls over. TIMER0 is unchanged on RESET and
+					;should be initialized before clearing T0IF bit.
+	MOVWF	TMR0
+	BSF	FLAG,0
+	BCF	INTCON,T0IF
+	GOTO	SAI_INT
+
+BOTAO_CHANGE
+	BCF	FREQUENCIA			; Reading GPIO will end the mismatch condition and allow flag bit GPIF to be cleared.
+	BSF	FLAG,1
+	BCF	INTCON,GPIF			;Limpa bit de mudanca de botao
+	GOTO	SAI_INT
+
+	
 ;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 ;*                 ROTINA DE SAIDA DA INTERRUPCAO                  *
 ;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
@@ -107,29 +132,38 @@ SAI_INT
 ;*	            	 ROTINAS E SUBROTINAS                      *
 ;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 
-;LOW
-;	RETURN
+LIMPA
+	MOVLW	.0
+	MOVWF	TMR0
+	BCF		FREQUENCIA
+	BCF		INTCON,GPIF		;Flag de mudanca de porta
+	BCF		INTCON,T0IF		;Flag de overflow
+	CLRF	FLAG
+	RETURN
+
 
 HZ_262
-	INCF	AUX
-	;Nao ta estourando nunca, estudar isso
-	BTFSS	PIR1,TMR1IF
+	BTFSS	FLAG,0
 	GOTO 	HZ_262
+	BCF		FLAG,0
 	RETURN
 
 HZ_349
-	BTFSS	PIR1,TMR1IF
-	GOTO	HZ_349
+	BTFSS	FLAG,0
+	GOTO 	HZ_349
+	BCF		FLAG,0
 	RETURN
 
 HZ_440
-	BTFSS	PIR1,TMR1IF
-	GOTO	HZ_440
+	BTFSS	FLAG,0
+	GOTO 	HZ_440
+	BCF		FLAG,0
 	RETURN
 
 HZ_523
-	BTFSS	PIR1,TMR1IF
+	BTFSS	FLAG,0
 	GOTO 	HZ_523
+	BCF		FLAG,0
 	RETURN
 
 
@@ -148,23 +182,17 @@ INICIO
 	MOVWF	TRISIO		
 	CLRF	ANSEL 			;DEFINE PORTAS COMO Digital I/O
 
-	MOVLW	B'00000100'		;Utilizando o PRESCALER em 1:32 do TMR0
+	MOVLW	B'00000111'		;Utilizando o PRESCALER em 1:256 do TMR0
 							;Configurando ele
 	MOVWF	OPTION_REG	
 
-	MOVLW	B'00000000'	;Configurando TMR1
-						;Vou utilizar prescaler de 1:1
-						;Meus valores estao contidos dentro do valor 0 ate 65xxx
-	MOVLW	T1CON
+	MOVLW	B'00000111'
+	MOVWF	IOC
 
-	MOVLW	B'00000001'	;Habilitando interrupcao
-						;bit 0 TMR1IE: TMR1 Overflow Interrupt Enable bit
-						;1 = Enables the TMR1 overflow interrupt
-						;0 = Disables the TMR1 overflow interrupt
-	MOVLW	PIE1
-
-	MOVLW	B'11000000'
+	MOVLW	B'11101000'		;HABILITO INTERRUPCAO PELO TMR0 BIT 5 TOIE
+							;Habilito interrupcao pela mudanca de porta BIT3 GPIE
 	MOVWF	INTCON			;DEFINE INTERRUPCAO
+
 	BANK0					;RETORNA PARA O BANCO 0
 
 	MOVLW	B'00000111'
@@ -173,7 +201,6 @@ INICIO
 ;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 ;*                     INICIALIZACAO DE VARIAVEIS                 *
 ;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
-	
 
 ;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 ;*                     ROTINA PRINCIPAL                            *
@@ -181,23 +208,19 @@ INICIO
 
 
 MAIN
+	;Limpa flags
+	CALL LIMPA
 
+	;*Testa as portas que estao sendo utilizadas
 
-	MOVLW	.0
-	MOVWF	AUX
-
-	;Limpa flag de mudanca de porta
-	BCF		INTCON,GPIF
-
-	;Testa as portas que estao sendo utilizadas
-	;Automaticamente com essa disposicao, teremos o dispositivo se mantendo em low sempre que nenhum botao esteja pressionado
 	BTFSS	BOTAO0 						;Pula quando botao0 = 1
 	GOTO	BOTAO0_0					;Chama low frequency, pois botao0 = 0
 	BTFSS	BOTAO1 						;Pula quando botao1 = 1
 	GOTO	BOTAO1_0_BOTAO0_1			;botao0 = 1 botao1 = 0
 	GOTO	BOTAO1_1_BOTAO0_1			;botao0 = 1 botao1 = 1
 
-BOTAO0_0	
+BOTAO0_0
+	;Automaticamente com essa disposicao, teremos o dispositivo se mantendo em low sempre que nenhum botao esteja pressionado
 	GOTO	F_LOW
 
 BOTAO1_0_BOTAO0_1
@@ -222,7 +245,7 @@ BOTAO1_1_BOTAO0_1
 ;*		T = 1/349 =	0,002865 segundos 	2865 instrucoes	0xB31
 ;*		T = 1/440 = 0,002272 segundos 	2272 instrucoes 0x8E0
 ;*		T = 1/523 = 0,001912 segundos   1912 instrucoes	0x778
-;*		Preciso passar esses valores para TMR1
+;*		Preciso passar esses valores para TMR0
 ;*	
 ;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
 
@@ -230,114 +253,130 @@ BOTAO1_1_BOTAO0_1
 ;Em cada uma das frequencias fica preso enquanto o botao nao seja alterado
 
 F_LOW
-
-	;CALL	LOW
 	BCF		FREQUENCIA
-	BTFSC	INTCON,GPIF
+	BTFSC	FLAG,1				;Se FLAG,1 = 1, a porta foi alterada, volta para o Main.
 	GOTO	MAIN
 	GOTO	F_LOW
 
+;Ta dando 4083 no lugar de 3816
 F_262
-	;LIMPA FLAG INTERRUPCAO
-	BCF	PIR1,TMR1IF
-
-	;Passa o valor correto para tal frequencia
-	;Tem que passar valores para TMR1L e TMR1H os dois bytes
-	;O valor de 0x0EE8-> equivale ao valor de 3816
-	;Vai de 0 a 65535(256*256 -1)
-
-	;O valor daqui deve ser o valor total(65535) - instrucoes(3816) = 61719 (0xF117)
-	;T = 1/262 = 0,003816 segundos	3816 instrucoes	0xEE8
-	MOVLW	0x17
-	MOVWF	TMR1L
-	MOVLW	0XF1
-	MOVWF	TMR1H
+	;Utilizando TMR0 com prescaler de 1:256
+	;Necessito do TMR0 comecando em 240
+	MOVLW	.240
+	MOVWF	TMR0
 
 	BSF		FREQUENCIA
 	CALL	HZ_262
-	BTFSC	INTCON,GPIF				;Se FLAG = 1, a porta foi alterada, volta para o Main.
+	BTFSC	FLAG,1				;Se FLAG,1 = 1, a porta foi alterada, volta para o Main.
 	GOTO	MAIN
+
 	;FAZ EM "ZERO" COM A FREQUENCIA
 	BCF		FREQUENCIA
+
+	;Utilizando TMR0 com prescaler de 1:256
+	;Necessito do TMR0 comecando em 240
+	MOVLW	.240
+	MOVWF	TMR0
+
 	CALL	HZ_262
-	BTFSC	INTCON,GPIF
+	BTFSC	FLAG,1				;Se FLAG,1 = 1, a porta foi alterada, volta para o Main.
 	GOTO	MAIN
 	GOTO	F_262
 
+
+;	FLAG		;BIT 0 -> Interrupcao por overflow TMR0
+				;BIT 1 -> Interrupcao por mudanca de porta
+
+;Ta dando 3100 no lugar de 2865
 F_349
-
-	;LIMPA FLAG INTERRUPCAO
-	BCF	PIR1,TMR1IF
-
-	;O valor daqui deve ser o valor total(65535) - instrucoes(2865) = 62670(0xF4CE)
-	;T = 1/349 =	0,002865 segundos 	2865 instrucoes	0xB31
-	MOVLW	0xCE
-	MOVWF	TMR1L
-	MOVLW	0XF4
-	MOVWF	TMR1H
 	
+	;Utilizando TMR0 com prescaler de 1:256
+	;Necessito do TMR0 comecando em 243,808 = 244
+	MOVLW	.244
+	MOVWF	TMR0
+
 	BSF		FREQUENCIA
 	CALL	HZ_349
-	BTFSC	INTCON,GPIF				;Se FLAG = 1, a porta foi alterada, volta para o Main.
+	BTFSC	FLAG,1				;Se FLAG,1 = 1, a porta foi alterada, volta para o Main.
 	GOTO	MAIN
+
 	;FAZ EM "ZERO" COM A FREQUENCIA
 	BCF		FREQUENCIA
+
+	;Utilizando TMR0 com prescaler de 1:256
+	;Necessito do TMR0 comecando em 243,808 = 244
+	MOVLW	.244
+	MOVWF	TMR0
+
 	CALL	HZ_349
-	BTFSC	INTCON,GPIF
+	BTFSC	FLAG,1				;Se FLAG,1 = 1, a porta foi alterada, volta para o Main.
 	GOTO	MAIN
 	GOTO	F_349
 
+
+;	FLAG		;BIT 0 -> Interrupcao por overflow TMR0
+				;BIT 1 -> Interrupcao por mudanca de porta
+
+;Ta dando 2578 no lugar de 2272
 F_440
-	
-	;LIMPA FLAG INTERRUPCAO
-	BCF	PIR1,TMR1IF
 
-	;O valor daqui deve ser o valor total(65535) - instrucoes(2272) = 63263(0xF71F)
-	;T = 1/440 = 0,002272 segundos 	2272 instrucoes 0x8E0
-	MOVLW	0x1F
-	MOVWF	TMR1L
-	MOVLW	0XF7
-	MOVWF	TMR1H
+	;Utilizando TMR0 com prescaler de 1:256
+	;Necessito do TMR0 comecando em 246
+	MOVLW	.246
+	MOVWF	TMR0
 
-	;FAZ EM "UM" COM A FREQUENCIA
 	BSF		FREQUENCIA
 	CALL	HZ_440
-	BTFSC	INTCON,GPIF				;Se FLAG = 1, a porta foi alterada, volta para o Main.
+	BTFSC	FLAG,1				;Se FLAG,1 = 1, a porta foi alterada, volta para o Main.
 	GOTO	MAIN
+
 	;FAZ EM "ZERO" COM A FREQUENCIA
 	BCF		FREQUENCIA
+
+	;Utilizando TMR0 com prescaler de 1:256
+	;Necessito do TMR0 comecando em 246
+	MOVLW	.246
+	MOVWF	TMR0
+
 	CALL	HZ_440
-	BTFSC	INTCON,GPIF
+	BTFSC	FLAG,1				;Se FLAG,1 = 1, a porta foi alterada, volta para o Main.
 	GOTO	MAIN
 	GOTO	F_440
 
 
+;	FLAG		;BIT 0 -> Interrupcao por overflow TMR0
+				;BIT 1 -> Interrupcao por mudanca de porta
+
+
+;Ta dando 2363 no lugar de 1912
 F_523
-
-	;LIMPA FLAG INTERRUPCAO
-	BCF	PIR1,TMR1IF
-
-	;O valor daqui deve ser o valor total(65535) - instrucoes(1912) = 63623(0xF887)
-	;T = 1/523 = 0,001912 segundos   1912 instrucoes	0x778
-
-	MOVLW	0x87
-	MOVWF	TMR1L
-	MOVLW	0XF8
-	MOVWF	TMR1H
+	
+	;Utilizando TMR0 com prescaler de 1:256
+	;Necessito do TMR0 comecando em 247
+	MOVLW	.247
+	MOVWF	TMR0
 
 	BSF		FREQUENCIA
 	CALL	HZ_523
-	BTFSC	INTCON,GPIF				;Se FLAG = 1, a porta foi alterada, volta para o Main.
+	BTFSC	FLAG,1				;Se FLAG,1 = 1, a porta foi alterada, volta para o Main.
 	GOTO	MAIN
+
 	;FAZ EM "ZERO" COM A FREQUENCIA
 	BCF		FREQUENCIA
+
+	;Utilizando TMR0 com prescaler de 1:256
+	;Necessito do TMR0 comecando em 247
+	MOVLW	.247
+	MOVWF	TMR0
+
 	CALL	HZ_523
-	BTFSC	INTCON,GPIF
+	BTFSC	FLAG,1				;Se FLAG,1 = 1, a porta foi alterada, volta para o Main.
 	GOTO	MAIN
 	GOTO	F_523
 
 
-
+;	FLAG		;BIT 0 -> Interrupcao por overflow TMR0
+				;BIT 1 -> Interrupcao por mudanca de porta
 
 
 

@@ -259,10 +259,11 @@ F_LOW
 	GOTO	F_LOW
 
 ;Ta dando 4083 no lugar de 3816
+;Com 241 consigo 3843
 F_262
 	;Utilizando TMR0 com prescaler de 1:256
 	;Necessito do TMR0 comecando em 240
-	MOVLW	.240
+	MOVLW	.241
 	MOVWF	TMR0
 
 	BSF		FREQUENCIA
@@ -275,7 +276,7 @@ F_262
 
 	;Utilizando TMR0 com prescaler de 1:256
 	;Necessito do TMR0 comecando em 240
-	MOVLW	.240
+	MOVLW	.241
 	MOVWF	TMR0
 
 	CALL	HZ_262
@@ -288,11 +289,12 @@ F_262
 				;BIT 1 -> Interrupcao por mudanca de porta
 
 ;Ta dando 3100 no lugar de 2865
+;245 consigo 2814
 F_349
 	
 	;Utilizando TMR0 com prescaler de 1:256
 	;Necessito do TMR0 comecando em 243,808 = 244
-	MOVLW	.244
+	MOVLW	.245
 	MOVWF	TMR0
 
 	BSF		FREQUENCIA
@@ -305,7 +307,7 @@ F_349
 
 	;Utilizando TMR0 com prescaler de 1:256
 	;Necessito do TMR0 comecando em 243,808 = 244
-	MOVLW	.244
+	MOVLW	.245
 	MOVWF	TMR0
 
 	CALL	HZ_349
@@ -317,12 +319,13 @@ F_349
 ;	FLAG		;BIT 0 -> Interrupcao por overflow TMR0
 				;BIT 1 -> Interrupcao por mudanca de porta
 
-;Ta dando 2578 no lugar de 2272
+;Ta dando 2578 no lugar de 22724~
+;2310 usando 247
 F_440
 
 	;Utilizando TMR0 com prescaler de 1:256
 	;Necessito do TMR0 comecando em 246
-	MOVLW	.246
+	MOVLW	.247
 	MOVWF	TMR0
 
 	BSF		FREQUENCIA
@@ -335,7 +338,7 @@ F_440
 
 	;Utilizando TMR0 com prescaler de 1:256
 	;Necessito do TMR0 comecando em 246
-	MOVLW	.246
+	MOVLW	.247
 	MOVWF	TMR0
 
 	CALL	HZ_440
@@ -348,12 +351,13 @@ F_440
 				;BIT 1 -> Interrupcao por mudanca de porta
 
 
-;Ta dando 2363 no lugar de 1912
+;Ta dando 2363 no lugar de 1912~
+;2051 utilizando 248
 F_523
 	
 	;Utilizando TMR0 com prescaler de 1:256
 	;Necessito do TMR0 comecando em 247
-	MOVLW	.247
+	MOVLW	.248
 	MOVWF	TMR0
 
 	BSF		FREQUENCIA
@@ -366,7 +370,7 @@ F_523
 
 	;Utilizando TMR0 com prescaler de 1:256
 	;Necessito do TMR0 comecando em 247
-	MOVLW	.247
+	MOVLW	.248
 	MOVWF	TMR0
 
 	CALL	HZ_523

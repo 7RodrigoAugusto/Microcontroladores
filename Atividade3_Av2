@@ -1,0 +1,553 @@
+
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+;*              MODIFICACOES PARA USO COM 12F675                   *
+;*                FEITAS PELO PROF. MARDSON                        *
+;*                    FEVEREIRO DE 2016                            *
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+;*                       NOME DO PROJETO                           *
+;*                           CLIENTE                               *
+;*         DESENVOLVIDO PELA MOSAICO ENGENHARIA E CONSULTORIA      *
+;*   VERSAO: 1.0                           DATA: 17/06/03          *
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+;*                     DESCRICAO DO ARQUIVO                        *
+;*-----------------------------------------------------------------*
+;*   MODELO PARA O PIC 12F675                                      *
+;*                                                                 *
+;*                                                                 *
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+;*                     ARQUIVOS DE DEFINICAO                       *
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+#INCLUDE <P12F675.INC>	;ARQUIVO PADRAO MICROCHIP PARA 12F675
+
+	__CONFIG _BODEN_OFF & _CP_OFF & _PWRTE_ON & _WDT_OFF & _MCLRE_ON & _INTRC_OSC_NOCLKOUT
+
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+;*                    PAGINACAO DE MEMORIA                         *
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+
+#DEFINE	BANK0	BCF STATUS,RP0	;SETA BANK 0 DE MEMORIA
+#DEFINE	BANK1	BSF STATUS,RP0	;SETA BANK 1 DE MEMORIA
+
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+;*                         VARIAVEIS                               *
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+; DEFINICAO DOS NOMES E ENDEREÇOS DE TODAS AS VARIAVEIS UTILIZADAS 
+; PELO SISTEMA
+
+	CBLOCK	0x20	;ENDERECO INICIAL DA MEMORIA DE
+					;USUARIO
+		W_TEMP		;REGISTRADORES TEMPORARIOS PARA USO
+		STATUS_TEMP	;JUNTO AS INTERRUPCOES
+		;NOVAS VARIAVEIS
+		AUX_COMANDO
+		AUX_LETRA
+
+	ENDC			;FIM DO BLOCO DE MEMORIA
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+;*                        FLAGS INTERNOS                           *
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+; DEFINICAO DE TODOS OS FLAGS UTILIZADOS PELO SISTEMA
+
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+;*                         CONSTANTES                              *
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+; DEFINICAO DE TODAS AS CONSTANTES UTILIZADAS PELO SISTEMA
+
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+;*                           ENTRADAS                              *
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+;*                           SAIDA                               *
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+; DEFINICAO DE TODOS OS PINOS QUE SERAO UTILIZADOS COMO SAIDA
+; RECOMENDAMOS TAMBEM COMENTAR O SIGNIFICADO DE SEUS ESTADOS (0 E 1)
+
+	#DEFINE	CLOCK	GPIO,0
+	#DEFINE	DADO	GPIO,4
+	#DEFINE	LCD		GPIO,5
+
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+;*                       VETOR DE RESET                            *
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+
+	ORG	0x00			;ENDERECO INICIAL DE PROCESSAMENTO
+	GOTO	INICIO
+	
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+;*                    INICIO DA INTERRUPCAO                        *
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+
+	ORG	0x04			;ENDERECO INICIAL DA INTERRUPCAO
+	MOVWF	W_TEMP		;COPIA W PARA W_TEMP
+	SWAPF	STATUS,W
+	MOVWF	STATUS_TEMP	;COPIA STATUS PARA STATUS_TEMP
+
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+;*                    ROTINA DE INTERRUPCAO                        *
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+;*                 ROTINA DE SAIDA DA INTERRUPCAO                  *
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+
+SAI_INT
+	SWAPF	STATUS_TEMP,W
+	MOVWF	STATUS		;MOVE STATUS_TEMP PARA STATUS
+	SWAPF	W_TEMP,F
+	SWAPF	W_TEMP,W	;MOVE W_TEMP PARA W
+	RETFIE
+
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+;*	            	 ROTINAS E SUBROTINAS                      *
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+
+
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+;*	            	 ROTINA DE LIMPEZA	 	                       *
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+LIMPA
+	BCF		DADO
+	MOVLW	.0
+	MOVWF	TMR0
+	RETURN
+
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+;*	            	 ROTINA DE ALTERAR PRESCALE	                   *
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+PRESCALE256
+	BANK1
+	MOVLW	B'00000111'		;Utilizando o PRESCALER em 1:256 do TMR0					
+	MOVWF	OPTION_REG	
+	BANK0
+	RETURN
+
+PRESCALE2
+	BANK1
+	MOVLW	B'00000000'		;Utilizando o PRESCALER em 1:2 do TMR0
+							
+	MOVWF	OPTION_REG	
+	BANK0
+	RETURN
+
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+;*	            	 ROTINAS DE ENABLE                             *
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+
+ENABLE_GP5
+	;ENABLE GP5
+	NOP			;ESTABILIZACAO
+	BSF	LCD
+	BCF	LCD
+	CALL	DELAY_1ms
+	RETURN
+
+ENABLE_CLOCK
+	NOP
+	BSF	CLOCK
+	BCF	CLOCK
+	RETURN
+
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+;*	            	 ROTINAS DE DELAY                              *
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+
+;UTILIZANDO PRESCALE 256 NOS SEGUINTES ATRASOS
+DELAY_15ms					;PRESCALE 256
+	CALL	PRESCALE256
+	BCF	INTCON,T0IF			;Limpa a flag
+	MOVLW	.197			;Passa o valor de TMR0 desejado
+	MOVWF	TMR0
+	BTFSS	INTCON,T0IF		;Checa se o TMR0 chegou em 256
+	GOTO	$-1
+	RETURN
+
+DELAY_4ms					;PRESCALE 256
+	CALL	PRESCALE256
+	BCF	INTCON,T0IF			;Limpa a flag
+	MOVLW	.240			;Passa o valor de TMR0 desejado
+	MOVWF	TMR0
+	BTFSS	INTCON,T0IF		;Checa se o TMR0 chegou em 256
+	GOTO	$-1
+	RETURN
+
+DELAY_1_8ms					;PRESCALE 256
+	CALL	PRESCALE256
+	BCF	INTCON,T0IF			;Limpa a flag
+	MOVLW	.249			;Passa o valor de TMR0 desejado
+	MOVWF	TMR0
+	BTFSS	INTCON,T0IF		;Checa se o TMR0 chegou em 256
+	GOTO	$-1
+	RETURN
+
+DELAY_1ms					;PRESCALE 256
+	CALL	PRESCALE256
+	BCF	INTCON,T0IF			;Limpa a flag
+	MOVLW	.252			;Passa o valor de TMR0 desejado
+	MOVWF	TMR0
+	BTFSS	INTCON,T0IF		;Checa se o TMR0 chegou em 256
+	GOTO	$-1
+	RETURN
+
+;UTILIZANDO PRESCALE 2 NOS SEGUINTES ATRASOS
+DELAY_100us					;PRESCALE 2
+	CALL	PRESCALE2
+	BCF	INTCON,T0IF			;Limpa a flag
+	MOVLW	.211			;Passa o valor de TMR0 desejado
+	MOVWF	TMR0
+	BTFSS	INTCON,T0IF		;Checa se o TMR0 chegou em 256
+	GOTO	$-1
+	RETURN
+
+DELAY_40us					;PRESCALE 2
+	CALL	PRESCALE2
+	BCF	INTCON,T0IF			;Limpa a flag
+	MOVLW	.242			;Passa o valor de TMR0 desejado
+	MOVWF	TMR0	
+	BTFSS	INTCON,T0IF		;Checa se o TMR0 chegou em 256
+	GOTO	$-1
+	RETURN
+
+
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+;*	            	 ROTINAS DE	INFORMACAO                         *
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+
+
+COMANDO
+	BTFSS	AUX_COMANDO,6
+	GOTO	$+4
+	BSF		DADO
+	CALL 	ENABLE_CLOCK
+	GOTO	$+3
+	BCF		DADO
+	CALL	ENABLE_CLOCK
+
+	BTFSS	AUX_COMANDO,5
+	GOTO	$+4
+	BSF		DADO
+	CALL 	ENABLE_CLOCK
+	GOTO	$+3
+	BCF		DADO
+	CALL	ENABLE_CLOCK
+
+	BTFSS	AUX_COMANDO,4
+	GOTO	$+4
+	BSF		DADO
+	CALL 	ENABLE_CLOCK
+	GOTO	$+3
+	BCF		DADO
+	CALL	ENABLE_CLOCK
+
+	BTFSS	AUX_COMANDO,3
+	GOTO	$+4
+	BSF		DADO
+	CALL 	ENABLE_CLOCK
+	GOTO	$+3
+	BCF		DADO
+	CALL	ENABLE_CLOCK
+
+	;PASSA PRIMEIRO BIT RS
+	;RS NESSE CASO EH ZERO
+	;RS = 0 -> A INFORMACAO EH COMANDO OU INSTRUCAO
+	BTFSS	AUX_COMANDO,7
+	GOTO	$+4
+	BSF		DADO
+	CALL 	ENABLE_CLOCK
+	GOTO	$+3
+	BCF		DADO
+	CALL	ENABLE_CLOCK
+
+	;BLACKLIGHT
+	BSF		DADO
+	CALL	ENABLE_CLOCK
+
+	BCF		DADO
+	CALL	ENABLE_CLOCK
+
+	BCF		DADO
+	CALL	ENABLE_CLOCK
+
+	CALL 	ENABLE_GP5 
+
+	RETURN
+
+
+LETRA
+	;PRIMEIRO A PARTE ALTA DO BYTE
+	BTFSS	AUX_LETRA,7
+	GOTO	$+4
+	BSF		DADO
+	CALL 	ENABLE_CLOCK
+	GOTO	$+3
+	BCF		DADO
+	CALL	ENABLE_CLOCK
+
+	BTFSS	AUX_LETRA,6
+	GOTO	$+4
+	BSF		DADO
+	CALL 	ENABLE_CLOCK
+	GOTO	$+3
+	BCF		DADO
+	CALL	ENABLE_CLOCK
+
+	BTFSS	AUX_LETRA,5
+	GOTO	$+4
+	BSF		DADO
+	CALL 	ENABLE_CLOCK
+	GOTO	$+3
+	BCF		DADO
+	CALL	ENABLE_CLOCK
+
+	BTFSS	AUX_LETRA,4
+	GOTO	$+4
+	BSF		DADO
+	CALL 	ENABLE_CLOCK
+	GOTO	$+3
+	BCF		DADO
+	CALL	ENABLE_CLOCK
+
+	;PASSA PRIMEIRO BIT RS
+	;RS NESSE CASO EH UM
+	;RS = 1 -> A INFORMACAO EH DADO
+	BSF		DADO
+	CALL	ENABLE_CLOCK
+
+	;BACKLIGHT
+	BSF		DADO
+	CALL	ENABLE_CLOCK
+
+	BCF		DADO
+	CALL	ENABLE_CLOCK
+
+	BCF		DADO
+	CALL	ENABLE_CLOCK
+
+	CALL	ENABLE_GP5
+
+	CALL	DELAY_1ms
+
+	;Segunda parte
+
+	BTFSS	AUX_LETRA,3
+	GOTO	$+4
+	BSF		DADO
+	CALL 	ENABLE_CLOCK
+	GOTO	$+3
+	BCF		DADO
+	CALL	ENABLE_CLOCK
+
+	BTFSS	AUX_LETRA,2
+	GOTO	$+4
+	BSF		DADO
+	CALL 	ENABLE_CLOCK
+	GOTO	$+3
+	BCF		DADO
+	CALL	ENABLE_CLOCK
+
+	BTFSS	AUX_LETRA,1
+	GOTO	$+4
+	BSF		DADO
+	CALL 	ENABLE_CLOCK
+	GOTO	$+3
+	BCF		DADO
+	CALL	ENABLE_CLOCK
+
+	BTFSS	AUX_LETRA,0
+	GOTO	$+4
+	BSF		DADO
+	CALL 	ENABLE_CLOCK
+	GOTO	$+3
+	BCF		DADO
+	CALL	ENABLE_CLOCK
+
+	;PASSA PRIMEIRO BIT RS
+	;RS NESSE CASO EH UM
+	;RS = 1 -> A INFORMACAO EH DADO
+	BSF		DADO
+	CALL	ENABLE_CLOCK
+
+	;BLACKLIGHT
+	BSF		DADO
+	CALL	ENABLE_CLOCK
+
+	BCF		DADO
+	CALL	ENABLE_CLOCK
+
+	BCF		DADO
+	CALL	ENABLE_CLOCK
+
+	CALL	ENABLE_GP5
+	CALL	DELAY_1ms
+
+	RETURN
+
+
+
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+;*                     INICIO DO PROGRAMA                          *
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+	
+INICIO
+	BANK1					;ALTERA PARA O BANCO 1
+	MOVLW	B'00000000' 	;CONFIGURA TODAS AS PORTAS DO GPIO (PINOS)
+							;GP0, GP1 E GP2 COMO ENTRADAS
+	MOVWF	TRISIO	
+
+	MOVLW	B'00000100'		;BIT DOIS COMO ENTRADA ANALOGICA, o resto como DIGITAl
+							;BIT 6-4 em 000 - > FOSC/2
+
+	MOVWF	ANSEL	
+	
+
+	MOVLW	B'00000111'		;Utilizando o PRESCALER em 1:256 do TMR0
+							;Configurando ele
+	MOVWF	OPTION_REG	
+
+	MOVLW	B'00000000'					
+	MOVWF	INTCON			
+	
+	BANK0					;RETORNA PARA O BANCO 0
+
+	MOVLW	B'10001011'	;BIT 7	-> 1 RIGHT JUSTIFIED
+						;BIT 6	-> 0 VDD (1 seria VREF)
+						;BIT 5-4	-> 0
+						;BIT 3-2	-> 10 Channel 02 (AN2)
+						;BIT 1	-> GO DONE
+						;BIT 0	-> ADON conversor AD ligado
+	MOVWF	ADCON0		;DEFINE O MODO DE OPERACAO DO CONVERSOR
+
+	MOVLW	B'00000111'
+	MOVWF	CMCON		;DEFINE O MODO DE OPERACAO DO COMPARADOR ANALOGICO
+
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+;*                     INICIALIZACAO DE VARIAVEIS                 *
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+	
+
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+;*                     ROTINA PRINCIPAL                            *
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+
+
+MAIN
+	CALL LIMPA	
+
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+;*                     INICIALIZACAO DO DISPLAY                    *
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+
+	;DELAY
+	CALL	DELAY_15ms
+
+	;COMANDO 0x30
+	MOVLW	B'00011000'
+	MOVWF	AUX_COMANDO	
+	CALL	COMANDO
+
+	;DELAY
+	CALL	DELAY_4ms
+
+	;COMANDO 0x30
+	CALL	COMANDO					
+
+	;DELAY
+	CALL	DELAY_100us
+
+	;COMANDO 0x30
+	CALL	COMANDO
+
+	;DELAY
+	CALL	DELAY_40us
+
+	;COMANDO PARA ESTABELECER COMUNICACAO EM 4 VIAS DISPLAY DE DUAS LINHAS
+	MOVLW	B'00010000'
+	MOVWF	AUX_COMANDO	
+	CALL	COMANDO	
+	MOVLW	B'00010000'
+	MOVWF	AUX_COMANDO	
+	CALL	COMANDO	
+	MOVLW	B'01000000'
+	MOVWF	AUX_COMANDO		
+	CALL	COMANDO	
+
+	;DELAY
+	CALL	DELAY_40us
+
+
+	;COMANDO PARA LIMPAR O DISPLAY
+	;COMANDO CURSOR PRIMEIRA LINHA
+	MOVLW	B'00000000'
+	MOVWF	AUX_COMANDO		
+	CALL	COMANDO
+	MOVLW	B'00001000'
+	MOVWF	AUX_COMANDO		
+	CALL	COMANDO
+
+	;DELAY
+	CALL	DELAY_1_8ms
+
+	;COMANDO PARA LIGAR O DISPLAY SEM CURSOR
+	MOVLW	B'00000000'	
+	MOVWF	AUX_COMANDO
+	CALL 	COMANDO
+	MOVLW	B'01100000'
+	MOVWF	AUX_COMANDO	
+	CALL	COMANDO
+
+	;DELAY
+	CALL	DELAY_40us
+
+	;COMANDO PARA ESTABELECER O MODO DE OPERACAO
+	;DESLOCAMENTO AUTOMATICO DO CURSOR PARA A DIREITA
+	MOVLW	B'00000000'
+	MOVWF	AUX_COMANDO
+	CALL 	COMANDO
+	MOVLW	B'00110000'		 				
+	MOVWF	AUX_COMANDO
+	CALL	DELAY_40us
+
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+;*                 		  CONVERSAO AD				               *
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+
+	;Conversao setando o bit GO DONE
+	;Quando a conversao acaba o bit GO DONE vai pra ZERO
+	;Ao fim ele vai pra zero e a flag ADIF vai pra 1
+	;Gera interrupcao se permitido
+	BSF		ADCON0,1
+	;Checa se o BIT ta em UM ou ZERO
+	BTFSS	ADCON0,1
+	GOTO	CONVERTIDO
+	GOTO	$-2
+
+CONVERTIDO
+
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+;*                   PASSAGEM DOS DADOS DO MEU NOME                *
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+
+
+
+
+	;Tem que dar enable a cada 4 bits
+
+	MOVLW	B'01001010'
+	;MOVLW	B'01010010'
+	MOVWF	AUX_LETRA		;PASSA LETRA R
+	CALL	LETRA
+
+ESPERA
+	GOTO ESPERA
+	GOTO MAIN
+	
+
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+;*                       FIM DO PROGRAMA                           *
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+
+	END

@@ -45,6 +45,9 @@
 		;NOVAS VARIAVEIS
 		AUX_COMANDO
 		AUX_LETRA
+		VALOR1
+		produtoLOW
+		produtoHIGH
 
 	ENDC			;FIM DO BLOCO DE MEMORIA
 ;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
@@ -387,6 +390,45 @@ LETRA
 	RETURN
 
 
+MULTIPLICA
+	;Pego o valor de ADRESH
+	MOVF	ADRESH,W
+	MOVWF	VALOR1
+
+MULTIPLICA_SETUP
+	CLRF	WREG
+	CLRF	produtoLOW
+	CLRF	produtoHIGH
+
+MULTIPLICA_LOOP
+	MOVF	VALOR1,W
+	ADDWF	produtoLOW...
+	
+	
+	
+	movlw	b'00001000'	;	Multiply 8
+	movwf	int1		;	
+	movlw 	b'00000111;	;	by 7
+	movwf	int2		;
+
+MULTIPLY_SETUP
+	clrf	WREG		;
+	clrf	productLOW	;
+	clrf	productHIGH	;
+MULT_LOOP
+	movfw	int1		;
+	addwf	productLOW,f	;	Move int1 to W, then add
+				;	to product
+				;
+	btfsz	STATUS, C	;	Now check the carry bit, and see
+	incf	productHIGH,f	;	if we've gone over 256
+				;	If so, we simply increment
+				;	the HIGH byte, and we're good
+	decfsz	int2		;
+	goto	MULT_LOOP	;	Every time we go through the loop
+				;	we decrement int2, until it's Zero
+	end			;
+
 
 ;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 ;*                     INICIO DO PROGRAMA                          *
@@ -398,8 +440,8 @@ INICIO
 							;GP0, GP1 E GP2 COMO ENTRADAS
 	MOVWF	TRISIO	
 
-	MOVLW	B'00000100'		;BIT DOIS COMO ENTRADA ANALOGICA, o resto como DIGITAl
-							;BIT 6-4 em 000 - > FOSC/2
+	MOVLW	B'00010100'		;BIT DOIS COMO ENTRADA ANALOGICA, o resto como DIGITAl
+							;BIT 6-4 em 001 - > FOSC/8
 
 	MOVWF	ANSEL	
 	
@@ -413,12 +455,12 @@ INICIO
 	
 	BANK0					;RETORNA PARA O BANCO 0
 
-	MOVLW	B'10001011'	;BIT 7	-> 1 RIGHT JUSTIFIED
+	MOVLW	B'10001010'	;BIT 7	-> 1 RIGHT JUSTIFIED
 						;BIT 6	-> 0 VDD (1 seria VREF)
 						;BIT 5-4	-> 0
 						;BIT 3-2	-> 10 Channel 02 (AN2)
-						;BIT 1	-> GO DONE
-						;BIT 0	-> ADON conversor AD ligado
+						;BIT 1	-> 1 GO DONE
+						;BIT 0	-> 0 ADON conversor AD desligado
 	MOVWF	ADCON0		;DEFINE O MODO DE OPERACAO DO CONVERSOR
 
 	MOVLW	B'00000111'
@@ -464,13 +506,21 @@ MAIN
 	;DELAY
 	CALL	DELAY_40us
 
+	;Devo chamar delay 40 us entre eles
+	
 	;COMANDO PARA ESTABELECER COMUNICACAO EM 4 VIAS DISPLAY DE DUAS LINHAS
 	MOVLW	B'00010000'
 	MOVWF	AUX_COMANDO	
 	CALL	COMANDO	
+	
+	;Novo delay
+	CALL	DELAY_40us
+	
 	MOVLW	B'00010000'
-	MOVWF	AUX_COMANDO	
+	MOVWF	AUX_COMANDO		
 	CALL	COMANDO	
+	
+	
 	MOVLW	B'01000000'
 	MOVWF	AUX_COMANDO		
 	CALL	COMANDO	
@@ -507,32 +557,47 @@ MAIN
 	MOVLW	B'00000000'
 	MOVWF	AUX_COMANDO
 	CALL 	COMANDO
-	MOVLW	B'00110000'		 				
+	MOVLW	B'01100000'		 				
 	MOVWF	AUX_COMANDO
 	CALL	DELAY_40us
 
 ;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
-;*                 		  CONVERSAO AD				               *
+;*                 		  LOOP CONVERSAO AD				           *
 ;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+	;Volta pro prescale 2, caso precise
+	CALL PRESCALE2
+
+	BSF		ADCON0,0		;Liga conversor AD
 
 	;Conversao setando o bit GO DONE
 	;Quando a conversao acaba o bit GO DONE vai pra ZERO
 	;Ao fim ele vai pra zero e a flag ADIF vai pra 1
 	;Gera interrupcao se permitido
 	BSF		ADCON0,1
+
+LOOP_CONVERSAO
 	;Checa se o BIT ta em UM ou ZERO
 	BTFSS	ADCON0,1
-	GOTO	CONVERTIDO
+	GOTO	CONVERTIDO	;ADCON0 em zero representa fim de conversao
 	GOTO	$-2
 
+
 CONVERTIDO
+	MOVF	ADRESH,W	;Conversao para WORK
+	;Chamar rotinas de multiplicacao e divisao
+
+	CALL	MULTIPLICA
+
+	;Multiplica o valor da conversao por 50d
+	;Fundo de escala = 5V
+	;Divide o resultado por 255d
 
 ;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 ;*                   PASSAGEM DOS DADOS DO MEU NOME                *
 ;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 
-
-
+	;Transforma pra ASCII
+	;Soma 48
 
 	;Tem que dar enable a cada 4 bits
 
@@ -541,9 +606,8 @@ CONVERTIDO
 	MOVWF	AUX_LETRA		;PASSA LETRA R
 	CALL	LETRA
 
-ESPERA
-	GOTO ESPERA
-	GOTO MAIN
+
+	GOTO LOOP_CONVERSAO
 	
 
 ;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *

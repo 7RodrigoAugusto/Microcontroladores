@@ -46,8 +46,28 @@
 		AUX_COMANDO
 		AUX_LETRA
 		VALOR1
+		VALOR2
 		produtoLOW
 		produtoHIGH
+
+		AUX
+		UNIDADE
+		DEZENA
+		temp
+		
+		;VARIAVEIS DIVISAO
+		ACCaHI	;Acumulador a de 16 bits utilizado na divisao
+		ACCaLO
+
+		ACCbHI	;Acumulador b de 16 bits utilizado na divisao
+		ACCbLO
+	
+		ACCcHI	;Acumulador c de 16 bits utilizado na divisao
+		ACCcLO
+
+		ACCdHI	;Acumulador d de 16 bits utilizado na divisao
+		ACCdLO
+
 
 	ENDC			;FIM DO BLOCO DE MEMORIA
 ;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
@@ -394,40 +414,95 @@ MULTIPLICA
 	;Pego o valor de ADRESH
 	MOVF	ADRESH,W
 	MOVWF	VALOR1
+	MOVLW	.5
+	MOVWF	VALOR2
 
-MULTIPLICA_SETUP
-	CLRF	WREG
+MULTIPLICA_LIMPA
+	CLRF	W
 	CLRF	produtoLOW
 	CLRF	produtoHIGH
 
 MULTIPLICA_LOOP
 	MOVF	VALOR1,W
-	ADDWF	produtoLOW...
-	
-	
-	
-	movlw	b'00001000'	;	Multiply 8
-	movwf	int1		;	
-	movlw 	b'00000111;	;	by 7
-	movwf	int2		;
+	ADDWF	produtoLOW
+	BTFSC	STATUS,C
+	INCF	produtoHIGH
+	DECFSZ	VALOR2
+	GOTO MULTIPLICA_LOOP
 
-MULTIPLY_SETUP
-	clrf	WREG		;
-	clrf	productLOW	;
-	clrf	productHIGH	;
-MULT_LOOP
-	movfw	int1		;
-	addwf	productLOW,f	;	Move int1 to W, then add
-				;	to product
-				;
-	btfsz	STATUS, C	;	Now check the carry bit, and see
-	incf	productHIGH,f	;	if we've gone over 256
-				;	If so, we simply increment
-				;	the HIGH byte, and we're good
-	decfsz	int2		;
-	goto	MULT_LOOP	;	Every time we go through the loop
-				;	we decrement int2, until it's Zero
-	end			;
+	RETURN
+
+;Rotina de divisao do livro "Conectando o PIC16F877A"
+DIVISAO
+	MOVLW	.16
+	MOVWF	temp
+	
+	MOVF	ACCbHI,w
+	MOVWF	ACCdHI
+	MOVF	ACCbLO,w
+	MOVWF	ACCdLO		;SALVA ACCb em ACCd
+
+	CLRF	ACCbHI
+	CLRF	ACCbLO
+
+	CLRF	ACCcHI		;Limpa ACCb
+	CLRF	ACCcLO		;Limpa ACCd
+
+DIV
+	BCF	STATUS,C
+	RLF	ACCdLO,F
+	RLF	ACCdHI,F
+	RLF	ACCcLO,F
+	RLF	ACCcHI,F
+	MOVF	ACCaHI,W
+	SUBWF	ACCcHI,W
+	BTFSS	STATUS,Z
+	GOTO	NOCHK
+	MOVF	ACCaLO,W
+	SUBWF	ACCcLO,W
+NOCHK
+	BTFSS	STATUS,C
+	GOTO	NOGO
+	MOVF	ACCaLO,W
+	SUBWF	ACCcLO,F
+	BTFSS	STATUS,C
+	DECF	ACCcHI,F
+	MOVF	ACCaHI,W
+	SUBWF	ACCcHI,F
+	BSF	STATUS,C
+NOGO
+	RLF	ACCbLO,F
+	RLF	ACCbHI,F
+
+	DECFSZ	temp,F
+	GOTO	DIV
+
+	RETURN
+
+	RETURN
+
+DECIMAL
+	MOVWF	AUX			;Salva o valor a converter em aux
+	CLRF	UNIDADE
+	CLRF	DEZENA
+
+	MOVF	AUX,F
+	BTFSC	STATUS,Z
+	RETURN
+
+	INCF	UNIDADE,F
+
+	MOVF	UNIDADE,W
+	XORLW	0x0A
+	BTFSS	STATUS,Z
+	GOTO	$+3
+
+	CLRF	UNIDADE
+	INCF	DEZENA,F
+
+	DECFSZ	AUX,F
+	GOTO	$-8
+	RETURN
 
 
 ;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
@@ -569,13 +644,12 @@ MAIN
 
 	BSF		ADCON0,0		;Liga conversor AD
 
+LOOP_CONVERSAO
 	;Conversao setando o bit GO DONE
 	;Quando a conversao acaba o bit GO DONE vai pra ZERO
 	;Ao fim ele vai pra zero e a flag ADIF vai pra 1
 	;Gera interrupcao se permitido
 	BSF		ADCON0,1
-
-LOOP_CONVERSAO
 	;Checa se o BIT ta em UM ou ZERO
 	BTFSS	ADCON0,1
 	GOTO	CONVERTIDO	;ADCON0 em zero representa fim de conversao
@@ -583,30 +657,51 @@ LOOP_CONVERSAO
 
 
 CONVERTIDO
-	MOVF	ADRESH,W	;Conversao para WORK
-	;Chamar rotinas de multiplicacao e divisao
+	MOVF	ADRESH,W		;Conversao para WORK
 
-	CALL	MULTIPLICA
-
-	;Multiplica o valor da conversao por 50d
+	;Multiplica o valor da conversao por 5
 	;Fundo de escala = 5V
-	;Divide o resultado por 255d
+	CALL	MULTIPLICA		;Multiplica o valor de ADDRESH
+	
+	MOVF	produtoHIGH,W	;Passa o valor HIGH do produto
+	MOVWF	ACCbHI
+	MOVF	produtoLOW,W	;Passa o valor LOW do produto
+	MOVWF	ACCbLO
+
+	CLRF	ACCaHI
+	MOVLW	.255
+	MOVWF	ACCaLO
+
+	CALL 	DIVISAO			;Chama rotina de divisao do livro "Conectando o PIC16F877A"
+	MOVF	ACCbLO,W
+	CALL	DECIMAL			;Pega as casas DEZENA e UNIDADE
 
 ;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
-;*                   PASSAGEM DOS DADOS DO MEU NOME                *
+;*                   PASSAGEM DOS DADOS 			               *
 ;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 
-	;Transforma pra ASCII
-	;Soma 48
-
-	;Tem que dar enable a cada 4 bits
-
-	MOVLW	B'01001010'
-	;MOVLW	B'01010010'
-	MOVWF	AUX_LETRA		;PASSA LETRA R
+	;Passa o valor da Dezena
+	MOVF	DEZENA,W
+	ADDLW  	0X30 
+	MOVWF	AUX_LETRA
 	CALL	LETRA
 
+	;Passa o valor em binario para o simbolo "PONTO"
+	MOVLW	B'00101110'
+	MOVWF	AUX_LETRA
+	CALL	LETRA	
+	
+	;Passa o valor da UNIDADE
+	MOVF	UNIDADE,W
+	ADDLW  	0X30  
+	MOVWF	AUX_LETRA
+	CALL	LETRA
 
+	;Passa o valor em binario para o simbolo V
+	MOVLW	B'01010110'
+	MOVWF	AUX_LETRA
+	CALL	LETRA	
+	
 	GOTO LOOP_CONVERSAO
 	
 

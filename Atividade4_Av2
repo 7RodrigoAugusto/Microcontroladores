@@ -1,0 +1,252 @@
+
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+;*              MODIFICACOES PARA USO COM 12F675                   *
+;*                FEITAS PELO PROF. MARDSON                        *
+;*                    FEVEREIRO DE 2016                            *
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+;*                       NOME DO PROJETO                           *
+;*                           CLIENTE                               *
+;*         DESENVOLVIDO PELA MOSAICO ENGENHARIA E CONSULTORIA      *
+;*   VERSAO: 1.0                           DATA: 17/06/03          *
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+;*                     DESCRICAO DO ARQUIVO                        *
+;*-----------------------------------------------------------------*
+;*   MODELO PARA O PIC 12F675                                      *
+;*                                                                 *
+;*                                                                 *
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+;*                     ARQUIVOS DE DEFINICAO                       *
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+#INCLUDE <P12F675.INC>	;ARQUIVO PADRAO MICROCHIP PARA 12F675
+
+	__CONFIG _BODEN_OFF & _CP_OFF & _PWRTE_ON & _WDT_OFF & _MCLRE_ON & _INTRC_OSC_NOCLKOUT
+
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+;*                    PAGINACAO DE MEMORIA                         *
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+
+#DEFINE	BANK0	BCF STATUS,RP0	;SETA BANK 0 DE MEMORIA
+#DEFINE	BANK1	BSF STATUS,RP0	;SETA BANK 1 DE MEMORIA
+
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+;*                         VARIAVEIS                               *
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+; DEFINICAO DOS NOMES E ENDEREÇOS DE TODAS AS VARIAVEIS UTILIZADAS 
+; PELO SISTEMA
+
+	CBLOCK	0x20	;ENDERECO INICIAL DA MEMORIA DE
+					;USUARIO
+		W_TEMP		;REGISTRADORES TEMPORARIOS PARA USO
+		STATUS_TEMP	;JUNTO AS INTERRUPCOES
+		;NOVAS VARIAVEIS
+
+	ENDC			;FIM DO BLOCO DE MEMORIA
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+;*                        FLAGS INTERNOS                           *
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+; DEFINICAO DE TODOS OS FLAGS UTILIZADOS PELO SISTEMA
+
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+;*                         CONSTANTES                              *
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+; DEFINICAO DE TODAS AS CONSTANTES UTILIZADAS PELO SISTEMA
+
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+;*                           ENTRADAS                              *
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+;*                           SAIDA                               *
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+; DEFINICAO DE TODOS OS PINOS QUE SERAO UTILIZADOS COMO SAIDA
+; RECOMENDAMOS TAMBEM COMENTAR O SIGNIFICADO DE SEUS ESTADOS (0 E 1)
+
+
+
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+;*                       VETOR DE RESET                            *
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+
+	ORG	0x00			;ENDERECO INICIAL DE PROCESSAMENTO
+	GOTO	INICIO
+	
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+;*                    INICIO DA INTERRUPCAO                        *
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+
+	ORG	0x04			;ENDERECO INICIAL DA INTERRUPCAO
+	MOVWF	W_TEMP		;COPIA W PARA W_TEMP
+	SWAPF	STATUS,W
+	MOVWF	STATUS_TEMP	;COPIA STATUS PARA STATUS_TEMP
+
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+;*                    ROTINA DE INTERRUPCAO                        *
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+;*                 ROTINA DE SAIDA DA INTERRUPCAO                  *
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+
+SAI_INT
+	SWAPF	STATUS_TEMP,W
+	MOVWF	STATUS		;MOVE STATUS_TEMP PARA STATUS
+	SWAPF	W_TEMP,F
+	SWAPF	W_TEMP,W	;MOVE W_TEMP PARA W
+	RETFIE
+
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+;*	            	 ROTINAS E SUBROTINAS                      *
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+
+PRESCALE256
+	BANK1
+	MOVLW	B'00000111'		;Utilizando o PRESCALER em 1:256 do TMR0					
+	MOVWF	OPTION_REG	
+	BANK0
+	RETURN
+
+PRESCALE2
+	BANK1
+	MOVLW	B'00000000'		;Utilizando o PRESCALER em 1:2 do TMR0
+							
+	MOVWF	OPTION_REG	
+	BANK0
+	RETURN
+
+
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+;*	            	 ROTINA DE LIMPEZA	 	                       *
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+
+
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+;*                     INICIO DO PROGRAMA                          *
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+	
+INICIO
+	BANK1					;ALTERA PARA O BANCO 1
+	MOVLW	B'00000010' 	;CONFIGURA TODAS AS PORTAS DO GPIO (PINOS)
+							;GP1 ->	Entrada
+							;GP2 -> Saida
+	MOVWF	TRISIO	
+
+	MOVLW	B'00010100'		;BIT DOIS COMO ENTRADA ANALOGICA, o resto como DIGITAl
+							;BIT 6-4 em 001 - > FOSC/8
+
+	MOVWF	ANSEL	
+	
+
+	MOVLW	B'00000111'		;Utilizando o PRESCALER em 1:256 do TMR0
+							;Configurando ele
+	MOVWF	OPTION_REG	
+
+	MOVLW	B'00000000'					
+	MOVWF	INTCON		
+
+	MOVLW	B'10101101' ;TENSAO INICIAL SERA ALTERADA NO MAIN DO PROGRAMA
+	MOVWF	VRCON		;VOLTAGE REFERENCE CONTROL REGISTER	
+	
+	BANK0					;RETORNA PARA O BANCO 0
+
+	MOVLW	B'00000011'	;Comparator with Output and Internal Reference CM2:CM0 = 011
+						;Com essa configuracao temos a saida COUT em GP2
+						;Bit 3 = 0	pois não estamos utilizando o multiplexador
+						;Bit 4 = 0	Output not inverted
+	MOVWF	CMCON		;DEFINE O MODO DE OPERAÇÃO DO COMPARADOR ANALÓGICO
+
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+;*                     INICIALIZACAO DE VARIAVEIS                 *
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+	
+
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+;*                     ROTINA PRINCIPAL                            *
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+
+
+MAIN
+
+	;***** INICIO DA LOGICA DO PROGRAMA *****
+	;Vou ficar comparando com o COUT que eh o GPIO,2
+	;E ficar alterando o valor interno de comparacao
+
+
+	; *******	Anotacoes  *******
+		;Realizo os calculos para low range e high range e dai digo qual dos dois irei utilizar
+		;O valor que deve ser passado para o VRCON eh o valor que fica variando
+	; *******	Fim de anotacoes  *******
+	
+
+	; *********	CALCULOS	NOVO	*********
+	; 				Low Range MAX: 2.2 = x/24 * 5 =>>> x =  10.56
+	;***ESCOLHIDO: High Range MIN: 2.2 = 1.25 + x*0.15625 =>>> x = 6.08  EM BINARIO 0110
+
+
+	;				Low Range MAX:	3.0 = x/24*5 =>>> x = 14,4
+	;***ESCOLHIDO: High Range MAX:  3.0 = 1.25 + x*0.15625 =>>> x = 11,2 EM BINARIO 1011	
+	; *********	FIM DE CALCULOS NOVO	*********
+
+
+
+	; *****	TESTE INICIAL PARA INICIAR VRCON COM O VALOR DE COMPARADOR MAX(3V) *****
+	BANK1
+	MOVLW	B'10001011'	;Passo aqui o valor para comparacao interna inicial de MAX(3.0V)
+						;PASSEI O VALOR DE HIGH RANGE(0 no bit5) DO PAPEL BRANCO EM BIT(1011) NUMERO(11) QUE REPRESENTA OS  3.0V
+	MOVWF	VRCON
+	BANK0
+	
+LOOP_TESTE
+	BTFSC	GPIO,2			;SE DEU 1 O VALOR EH MAIOR QUE O VALOR COMPARADO
+	GOTO	ALTERA_PARA_MIN	;DEU UM AGORA ALTERA PRA MIN
+	GOTO	ALTERA_PARA_MAX	;DEU ZERO AGORA ALTERA PRA MAX
+
+ALTERA_PARA_MIN 
+	BSF		EXTRA	;	APENAS UMA VARIAVEL EXTRA
+									;	A variavel COUT ja faz esse papel
+	BANK1
+	MOVLW	B'10000110'	;Passo aqui o valor para comparacao MIN(2.2V) ; 6.08 referente aos 2.2V
+						;PASSEI O VALOR DE HIGH RANGE - >6.08 referente aos 2.2V
+						;****	EXPLICACAO	****	
+						;Fica em loop comparando com o valor de 2.2V  enquanto o valor de COUT for 1
+						;Ou seja 3,1 ... 2,9 ... 2,6 ...
+						;Quando colocarmos um valor de 2,1v, por exemplo, o COUT vai acusar 0.
+						;COUT em 0 -> FIM do ALTERA_PARA_MIN e vai para o LOOP_TESTE que levara para o ALTERA_PARA_MAX
+						;Em ALTERA_PARA_MAX o valor do comparador sera trocado pelo valor MAX(3V), ficaremos presos em outro loop
+						;****	FIM DA EXPLICACAO	****	
+	MOVWF	VRCON
+	BANK0
+	BTFSC	GPIO,2		;SO SAI DESSE LOOP QUANDO A COMPARACAO DER ZERO
+	GOTO	ALTERA_PARA_MIN
+	GOTO	LOOP_TESTE
+
+ALTERA_PARA_MAX	
+	BCF		EXTRA	;	APENAS UMA VARIAVEL EXTRA 
+									;	A variavel COUT ja faz esse papel
+	BANK1
+	MOVLW	B'10001011'	;Passo aqui o valor de comparacao MAX(2.5V) ; Valor 11 referente aos 3V
+						;O valor que leva pra max eh o valor que foi testado com a folha branca 
+						;****	EXPLICACAO	****	
+						;Fica em loop enquanto temos um valor menor que o MAX(3V)
+						;Enquanto utilizarmos valores como 2,2 ... 2,9, estaremos presos pois o COUT sera ZERO
+						;No momento que um valor maior que o MAX(3V) o COUT vai acusar 1
+						;COUT em 1 -> FIM do ALTERA_PARA_MAX e vai para o LOOP_TESTE que levara para o ALTERA_PARA_MIN 
+						;Em ALTERA_PARA_MIN o valor do comparador sera trocado pelo valor MIN(2.2V), ficaremos presos em outro loop
+						;****	FIM DA EXPLICACAO	****	
+	MOVWF	VRCON
+	BANK0
+	BTFSC	GPIO,2		;SO SAI DESSE LOOP QUANDO A COMPARACAO DER 1
+						;ESSA CHECAGEM EH O OPOSTO DA ANTERIOR
+	GOTO	LOOP_TESTE
+	GOTO	ALTERA_PARA_MAX
+
+	GOTO MAIN
+
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+;*                       FIM DO PROGRAMA                           *
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+
+	END

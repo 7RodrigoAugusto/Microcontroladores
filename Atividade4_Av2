@@ -209,6 +209,7 @@ ALTERA_PARA_MIN
 									;	A variavel COUT ja faz esse papel
 	BANK1
 	MOVLW	B'10000110'	;Passo aqui o valor para comparacao MIN(2.2V) ; 6.08 referente aos 2.2V
+						;BIT 5 -> 0 HIGH RANGE
 						;PASSEI O VALOR DE HIGH RANGE - >6.08 referente aos 2.2V
 						;****	EXPLICACAO	****	
 						;Fica em loop comparando com o valor de 2.2V  enquanto o valor de COUT for 1
@@ -227,7 +228,8 @@ ALTERA_PARA_MAX
 	BCF		EXTRA	;	APENAS UMA VARIAVEL EXTRA 
 									;	A variavel COUT ja faz esse papel
 	BANK1
-	MOVLW	B'10001011'	;Passo aqui o valor de comparacao MAX(2.5V) ; Valor 11 referente aos 3V
+	MOVLW	B'10001011'	;Passo aqui o valor de comparacao MAX(3V) ; Valor 11 referente aos 3V
+						;BIT 5 -> 0 HIGH RANGE
 						;O valor que leva pra max eh o valor que foi testado com a folha branca 
 						;****	EXPLICACAO	****	
 						;Fica em loop enquanto temos um valor menor que o MAX(3V)

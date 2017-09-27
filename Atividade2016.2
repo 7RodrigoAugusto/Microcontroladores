@@ -1,0 +1,261 @@
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+;*              MODIFICAÇÕES PARA USO COM 12F675                   *
+;*                FEITAS PELO PROF. MARDSON                        *
+;*                    FEVEREIRO DE 2016                            *
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+;*                       	PROJETO 5        		               *
+;*                           RODRIGO                               *
+;*         DESENVOLVIDO PELA MOSAICO ENGENHARIA E CONSULTORIA      *
+;*   VERSÃO: 1.0                           DATA: 10/05/2017        *
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+;*                     DESCRIÇÃO DO ARQUIVO                        *
+;*-----------------------------------------------------------------*
+;*   MODELO PARA O PIC 12F675                                      *
+;*                                                                 *
+;*                                                                 *
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+;*                     ARQUIVOS DE DEFINIÇÕES                      *
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+#INCLUDE <P12F675.INC>	;ARQUIVO PADRÃO MICROCHIP PARA 12F675
+
+	__CONFIG _BODEN_OFF & _CP_OFF & _PWRTE_ON & _WDT_OFF & _MCLRE_ON & _INTRC_OSC_NOCLKOUT
+
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+;*                    PAGINAÇÃO DE MEMÓRIA                         *
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+;DEFINIÇÃO DE COMANDOS DE USUÁRIO PARA ALTERAÇÃO DA PÁGINA DE MEMÓRIA
+#DEFINE	BANK0	BCF STATUS,RP0	;SETA BANK 0 DE MEMÓRIA
+#DEFINE	BANK1	BSF STATUS,RP0	;SETA BANK 1 DE MAMÓRIA
+
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+;*                         VARIÁVEIS                               *
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+; DEFINIÇÃO DOS NOMES E ENDEREÇOS DE TODAS AS VARIÁVEIS UTILIZADAS 
+; PELO SISTEMA
+
+	CBLOCK	0x20	;ENDEREÇO INICIAL DA MEMÓRIA DE
+					;USUÁRIO
+		W_TEMP		;REGISTRADORES TEMPORÁRIOS PARA USO
+		STATUS_TEMP	;JUNTO ÀS INTERRUPÇÕES
+		DADO
+		;NOVAS VARIÁVEIS
+
+	ENDC			;FIM DO BLOCO DE MEMÓRIA
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+;*                        FLAGS INTERNOS                           *
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+; DEFINIÇÃO DE TODOS OS FLAGS UTILIZADOS PELO SISTEMA
+
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+;*                         CONSTANTES                              *
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+; DEFINIÇÃO DE TODAS AS CONSTANTES UTILIZADAS PELO SISTEMA
+
+; INICIALIZA«√O DA EEPROM, DE ACORDO COM A DESCRI«√O NO ARQUIVO "Def_Rega_Formigas.inc"
+
+;A PARTIR DO ENDERE«O ZERO DA EEPROM, DADOS EM ORDEM ALEAT”RIA
+	ORG 0x2100
+	DE	0X89,0X1E,0X39,0X9F,0XC2,0X0C,0XAB,0X33,0X63,0XD3,0X95,0X7B,0X38,0XD6,0X1E,0X48
+	DE	0XDB,0XD8,0X86,0XFD,0XA5,0XFC,0X0C,0XBE,0X68,0X9B,0XD9,0X10,0XD8,0XEC,0X90,0X91
+	DE	0XAA,0XBB,0XCC,0XDD,0XEE,0XF1,0XC9,0X77
+
+
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+;*                           ENTRADAS                              *
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+; DEFINIÇÃO DE TODOS OS PINOS QUE SERÃO UTILIZADOS COMO ENTRADA
+; RECOMENDAMOS TAMBÉM COMENTAR O SIGNIFICADO DE SEUS ESTADOS (0 E 1)
+
+
+#DEFINE	LDR	GPIO,1
+
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+;*                           SAÍDAS                                *
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+; DEFINIÇÃO DE TODOS OS PINOS QUE SERÃO UTILIZADOS COMO SAÍDA
+; RECOMENDAMOS TAMBÉM COMENTAR O SIGNIFICADO DE SEUS ESTADOS (0 E 1)
+
+#DEFINE ILUNINACAO_ARTIFICIAL	GPIO,4 ;SAIDA EXTRA DESNECESSARIA
+
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+;*                       VETOR DE RESET                            *
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+
+	ORG	0x00			;ENDEREÇO INICIAL DE PROCESSAMENTO
+	GOTO	INICIO
+	
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+;*                    INÍCIO DA INTERRUPÇÃO                        *
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+; ENDEREÇO DE DESVIO DAS INTERRUPÇÕES. A PRIMEIRA TAREFA É SALVAR OS
+; VALORES DE "W" E "STATUS" PARA RECUPERAÇÃO FUTURA
+
+	ORG	0x04			;ENDEREÇO INICIAL DA INTERRUPÇÃO
+	MOVWF	W_TEMP		;COPIA W PARA W_TEMP
+	SWAPF	STATUS,W
+	MOVWF	STATUS_TEMP	;COPIA STATUS PARA STATUS_TEMP
+
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+;*                    ROTINA DE INTERRUPÇÃO                        *
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+; AQUI SERÁ ESCRITA AS ROTINAS DE RECONHECIMENTO E TRATAMENTO DAS
+; INTERRUPÇÕES
+
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+;*                 ROTINA DE SAÍDA DA INTERRUPÇÃO                  *
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+; OS VALORES DE "W" E "STATUS" DEVEM SER RECUPERADOS ANTES DE 
+; RETORNAR DA INTERRUPÇÃO
+
+SAI_INT
+	SWAPF	STATUS_TEMP,W
+	MOVWF	STATUS		;MOVE STATUS_TEMP PARA STATUS
+	SWAPF	W_TEMP,F
+	SWAPF	W_TEMP,W	;MOVE W_TEMP PARA W
+	RETFIE
+
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+;*	            	 ROTINAS E SUBROTINAS                      *
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+; CADA ROTINA OU SUBROTINA DEVE POSSUIR A DESCRIÇÃO DE FUNCIONAMENTO
+; E UM NOME COERENTE ÀS SUAS FUNÇÕES.
+
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+;*                     INICIO DO PROGRAMA                          *
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+	
+INICIO
+	BANK1				;ALTERA PARA O BANCO 1
+	MOVLW	B'00000010' ;CONFIGURA TODAS AS PORTAS DO GPIO (PINOS)
+	MOVWF	TRISIO		;COMO SAÍDAS MENOS GP1 que eh entrada
+	CLRF	ANSEL 		;DEFINE PORTAS COMO Digital I/O
+	MOVLW	B'00000100'	;100 o TMR0 rate é de 1:32
+	MOVWF	OPTION_REG	;DEFINE OPÇÕES DE OPERAÇÃO
+	MOVLW	B'00000000'
+	MOVWF	INTCON		;DEFINE OPÇÕES DE INTERRUPÇÕES
+	MOVLW	B'10101101' ;TENSAO INICIAL SERA ALTERADA NO MAIN DO PROGRAMA
+	MOVWF	VRCON		;VOLTAGE REFERENCE CONTROL REGISTER
+
+	BANK0				;RETORNA PARA O BANCO
+
+	MOVLW	B'00000011'	;Comparator with Output and Internal Reference
+						;O bit 3 em 0, pois não estamos utilizando o multiplexador
+						;O OUTPUT EM GPIO,2 
+						;Bit 4 0 = Output not inverted
+	MOVWF	CMCON		;DEFINE O MODO DE OPERAÇÃO DO COMPARADOR ANALÓGICO
+
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+;*                     INICIALIZAÇÃO DAS VARIÁVEIS                 *
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+
+
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+;*                     ROTINA PRINCIPAL                            *
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+
+
+; *******	Anotacoes iniciais *******
+	;O grande problema é que as faixas high and low só vão até 3.59, ou seja precisamos 
+	;manejar a tensão de referência para poder fazer a comparação, por isso precisamos 
+	;em alguns casos baixar a tensão
+	;High fica entre 1.25 e 3.59
+	;Low fica entre 0 e 3.125
+	;Pesquisar maneiras de baixar tensão
+	; TENSAO DE 5V -> Realizar calculo com o divisor de tensao 
+	; DIVISOR DE TENSAO PRA BAIXAR A TENSAO
+	; SOLUÇÃO QUE NÃO UTILIZE TENSÃO INTERNA PARA REFERÊNCIA
+	; Utilizando ZENER(reler isso)
+	; O Zener vai garantir que qualquer variação de entrada seja mantida
+; *******	Fim das anotacoes iniciais *******
+
+
+
+MAIN
+;	***** INICIO DA LOGICA DO PROGRAMA *****
+	
+
+	;Vou ficar comparando com o COUT que eh o GPIO,2
+	;E ficar alterando o valor interno de comparacao
+
+	; *****	TESTE INICIAL PARA INICIAR VRCON COM O VALOR DE COMPARADOR MAX(3V) *****
+	BANK1
+	MOVLW	B'10001011'	;Passo aqui o valor para comparacao interna inicial de MAX(3.0V)
+						;PASSEI O VALOR DE HIGH RANGE(0 no bit5) DO PAPEL BRANCO EM BIT(1011) NUMERO(11) QUE REPRESENTA OS  3.0V
+	MOVWF	VRCON
+	BANK0
+	
+LOOP_TESTE
+	BTFSC	GPIO,2			;SE DEU 1 O VALOR EH MAIOR QUE O VALOR COMPARADO
+	GOTO	ALTERA_PARA_MIN	;DEU UM AGORA ALTERA PRA MIN
+	GOTO	ALTERA_PARA_MAX	;DEU ZERO AGORA ALTERA PRA MAX
+
+	; *******	Anotacoes  *******
+		;Pegar no Lab o valor de entrada do LDR dependendo a tensao de entrada
+		;Realizo os calculos para low range e high range e dai digo qual dos dois irei utilizar
+		;O valor que deve ser passado para o VRCON eh o valor que fica variando
+	; *******	Fim de anotacoes  *******
+	
+	; *********	CALCULOS	*********
+		; Utilizando uma folha de plastico azul(MIN) e uma folha branca(MAX)
+		; Utilizando resistor de 10k 
+		; 				Low Range MAX(Papel Azul):2.5 = x/24 * 5 =>>> x =  12
+		;***ESCOLHIDO: High Range MIN(Papel Azul): 2.5 = 1.25 + x*0.15625 =>>> x = 8 EM BINARIO 1000
+		
+		
+		; 			   Low Range MAX(Folha Branca):	3.0 = x/24*5 =>>> x = 14,4
+		;***ESCOLHIDO: High Range MAX(Folha Branca): 3.0 = 1.25 + x*0.15625 =>>> x = 11,2 EM BINARIO 1011
+	; *********	FIM DE CALCULOS	*********
+
+
+ALTERA_PARA_MIN 
+	BSF		ILUNINACAO_ARTIFICIAL	;	APENAS UMA VARIAVEL EXTRA
+									;	A variavel COUT ja faz esse papel
+	BANK1
+	MOVLW	B'10001000'	;Passo aqui o valor para comparacao MIN(2.5V) ; 8 referente aos 2.5V
+						;PASSEI O VALOR DE HIGH RANGE DO PAPEL AZUL 100 - >8 referente aos 2.5V
+						;****	EXPLICACAO	****	
+						;Fica em loop comparando com o valor de 2.5V  enquanto o valor de COUT for 1
+						;Ou seja 3,1 ... 2,9 ... 2,6 ...
+						;Quando colocarmos um valor de 2,4v por exemplo o COUT vai acusar 0
+						;COUT em 0 -> FIM do ALTERA_PARA_MIN e vai para o LOOP_TESTE que levara para o ALTERA_PARA_MAX
+						;Em ALTERA_PARA_MAX o valor do comparador sera trocado pelo valor MAX(3V), ficaremos presos em outro loop
+						;****	FIM DA EXPLICACAO	****	
+	MOVWF	VRCON
+	BANK0
+	BTFSC	GPIO,2		;SO SAI DESSE LOOP QUANDO A COMPARACAO DER ZERO
+	GOTO	ALTERA_PARA_MIN
+	GOTO	LOOP_TESTE
+
+ALTERA_PARA_MAX	
+	BCF		ILUMINACAO_ARTIFICIAL	;	APENAS UMA VARIAVEL EXTRA 
+									;	A variavel COUT ja faz esse papel
+	BANK1
+	MOVLW	B'10001011'	;Passo aqui o valor de comparacao MAX(2.5V) ; Valor 11 referente aos 3V
+						;O valor que leva pra max eh o valor que foi testado com a folha branca 
+						;****	EXPLICACAO	****	
+						;Fica em loop enquanto temos um valor menor que o MAX(3V)
+						;Enquanto utilizarmos valores como 2,5 ... 2,9, estaremos presos pois o COUT sera ZERO
+						;No momento que um valor maior que o MAX(3V) o COUT vai acusar 1
+						;COUT em 1 -> FIM do ALTERA_PARA_MAX e vai para o LOOP_TESTE que levara para o ALTERA_PARA_MIN 
+						;Em ALTERA_PARA_MIN o valor do comparador sera trocado pelo valor MIN(2.5V), ficaremos presos em outro loop
+						;****	FIM DA EXPLICACAO	****	
+	MOVWF	VRCON
+	BANK0
+	BTFSC	GPIO,2		;SO SAI DESSE LOOP QUANDO A COMPARACAO DER 1
+						;ESSA CHECAGEM EH O OPOSTO DA ANTERIOR
+	GOTO	LOOP_TESTE
+	GOTO	ALTERA_PARA_MAX
+	
+	GOTO MAIN
+
+;	***** FIM DA LOGICA DO PROGRAMA *****
+	
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+;*                       FIM DO PROGRAMA                           *
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+
+	END

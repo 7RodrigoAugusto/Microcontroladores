@@ -43,6 +43,7 @@
 		W_TEMP		;REGISTRADORES TEMPORARIOS PARA USO
 		STATUS_TEMP	;JUNTO AS INTERRUPCOES
 		;NOVAS VARIAVEIS
+		EXTRA
 
 	ENDC			;FIM DO BLOCO DE MEMORIA
 ;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
@@ -151,11 +152,12 @@ INICIO
 	MOVWF	VRCON		;VOLTAGE REFERENCE CONTROL REGISTER	
 	
 	BANK0					;RETORNA PARA O BANCO 0
-
-	MOVLW	B'00000011'	;Comparator with Output and Internal Reference CM2:CM0 = 011
+	;Seguindo a nova logica
+	MOVLW	B'00000100'
+	;MOVLW	B'00000011'	;Comparator with Output and Internal Reference CM2:CM0 = 011
 						;Com essa configuracao temos a saida COUT em GP2
 						;Bit 3 = 0	pois não estamos utilizando o multiplexador
-						;Bit 4 = 0	Output not inverted
+						;Bit 4 = 0	Output not inverted ;Ja testei alterando o output mesmo erro
 	MOVWF	CMCON		;DEFINE O MODO DE OPERAÇÃO DO COMPARADOR ANALÓGICO
 
 ;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
@@ -199,14 +201,19 @@ MAIN
 	MOVWF	VRCON
 	BANK0
 	
+;Teste Inicial
 LOOP_TESTE
-	BTFSC	GPIO,2			;SE DEU 1 O VALOR EH MAIOR QUE O VALOR COMPARADO
+	;Olhar explicitamente o COUT
+	BTFSS	CMCON,COUT
+	;BTFSC	GPIO,2			;SE DEU 1 O VALOR EH MAIOR QUE O VALOR COMPARADO
 	GOTO	ALTERA_PARA_MIN	;DEU UM AGORA ALTERA PRA MIN
 	GOTO	ALTERA_PARA_MAX	;DEU ZERO AGORA ALTERA PRA MAX
 
 ALTERA_PARA_MIN 
-	BSF		EXTRA	;	APENAS UMA VARIAVEL EXTRA
-									;	A variavel COUT ja faz esse papel
+	;Limpo diretamente
+	BCF	GPIO,2	
+
+	;Altero Referencia
 	BANK1
 	MOVLW	B'10000110'	;Passo aqui o valor para comparacao MIN(2.2V) ; 6.08 referente aos 2.2V
 						;BIT 5 -> 0 HIGH RANGE
@@ -220,13 +227,18 @@ ALTERA_PARA_MIN
 						;****	FIM DA EXPLICACAO	****	
 	MOVWF	VRCON
 	BANK0
-	BTFSC	GPIO,2		;SO SAI DESSE LOOP QUANDO A COMPARACAO DER ZERO
-	GOTO	ALTERA_PARA_MIN
-	GOTO	LOOP_TESTE
+
+MIN_LOOP
+	BTFSS	CMCON,COUT	;Quando for 1 o valor sera menor que o valor de referencia de 2.2V	
+	GOTO	MIN_LOOP
+	GOTO	ALTERA_PARA_MAX
 
 ALTERA_PARA_MAX	
-	BCF		EXTRA	;	APENAS UMA VARIAVEL EXTRA 
-									;	A variavel COUT ja faz esse papel
+
+	;Seto diretamente
+	BSF	GPIO,2
+
+	;Altero Referencia
 	BANK1
 	MOVLW	B'10001011'	;Passo aqui o valor de comparacao MAX(3V) ; Valor 11 referente aos 3V
 						;BIT 5 -> 0 HIGH RANGE
@@ -240,10 +252,12 @@ ALTERA_PARA_MAX
 						;****	FIM DA EXPLICACAO	****	
 	MOVWF	VRCON
 	BANK0
-	BTFSC	GPIO,2		;SO SAI DESSE LOOP QUANDO A COMPARACAO DER 1
-						;ESSA CHECAGEM EH O OPOSTO DA ANTERIOR
-	GOTO	LOOP_TESTE
-	GOTO	ALTERA_PARA_MAX
+
+MAX_LOOP
+	;Checo mudanca
+	BTFSS	CMCON,COUT	;Quando for 0 o valor sera maior que o valor de referencia de 3V
+	GOTO	ALTERA_PARA_MIN
+	GOTO	MAX_LOOP
 
 	GOTO MAIN
 
